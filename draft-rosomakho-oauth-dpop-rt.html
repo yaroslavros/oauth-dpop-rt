@@ -9,6 +9,7 @@
 <meta content="Loren Weith" name="author">
 <meta content="
        This document defines an extension to OAuth 2.0 Demonstrating Proof-of-Possession at the application level (DPoP, RFC 9449) that allows refresh tokens to be bound to a different proof-of-possession key than access tokens. In the existing specification, a single DPoP proof is used to bind both tokens to the same key material. However, in many deployments, refresh tokens and access tokens are stored and managed in different security contexts. To support this operational separation, this document introduces a new HTTP header field, DPoP-RT, and corresponding DPoP-RT-Nonce mechanism, enabling independent proof-of-possession for refresh token use while preserving compatibility with existing DPoP-bound access tokens. 
+       A motivating scenario for this extension is an agent managing numerous long-lived tokens on behalf of its users, where user participation is often required for revocation. When combined with a hardware security module (HSM), DPoP allows use of a refresh token to be halted immediately by disabling the associated key material. The token remains valid but unusable until the key is reactivated. In large, distributed systems with many worker nodes, however, involving an HSM in every transaction is operationally impractical, motivating this extension. 
     " name="description">
 <meta content="xml2rfc 3.30.2" name="generator">
 <meta content="DPoP" name="keyword">
@@ -1087,6 +1088,7 @@ svg :is([fill="white"], [fill^="#fff"]) {
 <section id="section-abstract">
       <h2 id="abstract"><a href="#abstract" class="selfRef">Abstract</a></h2>
 <p id="section-abstract-1">This document defines an extension to OAuth 2.0 Demonstrating Proof-of-Possession at the application level (DPoP, RFC 9449) that allows refresh tokens to be bound to a different proof-of-possession key than access tokens. In the existing specification, a single DPoP proof is used to bind both tokens to the same key material. However, in many deployments, refresh tokens and access tokens are stored and managed in different security contexts. To support this operational separation, this document introduces a new HTTP header field, DPoP-RT, and corresponding DPoP-RT-Nonce mechanism, enabling independent proof-of-possession for refresh token use while preserving compatibility with existing DPoP-bound access tokens.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
+<p id="section-abstract-2">A motivating scenario for this extension is an agent managing numerous long-lived tokens on behalf of its users, where user participation is often required for revocation. When combined with a hardware security module (HSM), DPoP allows use of a refresh token to be halted immediately by disabling the associated key material. The token remains valid but unusable until the key is reactivated. In large, distributed systems with many worker nodes, however, involving an HSM in every transaction is operationally impractical, motivating this extension.<a href="#section-abstract-2" class="pilcrow">¶</a></p>
 </section>
 <section class="note rfcEditorRemove" id="section-note.1">
       <h2 id="name-about-this-document">
@@ -1280,7 +1282,7 @@ svg :is([fill="white"], [fill^="#fff"]) {
           <p id="section-1-5.2.1">Rotate or revoke access token keys without affecting the refresh token flow<a href="#section-1-5.2.1" class="pilcrow">¶</a></p>
 </li>
         <li class="normal" id="section-1-5.3">
-          <p id="section-1-5.3.1">Reduce the blast radius of a key compromise<a href="#section-1-5.3.1" class="pilcrow">¶</a></p>
+          <p id="section-1-5.3.1">Reduce the blast radius of access token key compromise<a href="#section-1-5.3.1" class="pilcrow">¶</a></p>
 </li>
       </ul>
 <p id="section-1-6">The extension is fully backward compatible with <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span> as clients and authorization servers that do not implement this specification continue to operate unchanged, while those that support DPoP-RT can negotiate its use on a per-client basis.<a href="#section-1-6" class="pilcrow">¶</a></p>
@@ -1781,7 +1783,7 @@ refresh_token=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVC...
             <p id="section-8.1-2.2.1">If the refresh token key is compromised, an attacker can redeem the refresh token and obtain new access tokens, binding them to an attacker-controlled access token key. Separation merely forces AS interaction.<a href="#section-8.1-2.2.1" class="pilcrow">¶</a></p>
 </li>
         </ul>
-<p id="section-8.1-3">Implementers <span class="bcp14">SHOULD</span> store the refresh-token key in a hardened or server-side environment and allow the access-token key to reside in a more transient context such as a front-end instance or mobile device. Key separation materially reduces the blast radius of access token key compromise but does not reduce the impact of a full refresh token key compromise.<a href="#section-8.1-3" class="pilcrow">¶</a></p>
+<p id="section-8.1-3">Implementers <span class="bcp14">SHOULD</span> store the refresh-token key in an HSM or hardened server-side environment and <span class="bcp14">MAY</span> allow the access-token key to reside in a more transient context such as a front-end instance or mobile device. Key separation materially reduces the blast radius of access token key compromise but does not reduce the impact of a full refresh token key compromise.<a href="#section-8.1-3" class="pilcrow">¶</a></p>
 </section>
 </div>
 <div id="replay-protection-and-nonces">

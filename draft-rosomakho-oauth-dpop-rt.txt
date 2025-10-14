@@ -25,6 +25,16 @@ Abstract
    proof-of-possession for refresh token use while preserving
    compatibility with existing DPoP-bound access tokens.
 
+   A motivating scenario for this extension is an agent managing
+   numerous long-lived tokens on behalf of its users, where user
+   participation is often required for revocation.  When combined with a
+   hardware security module (HSM), DPoP allows use of a refresh token to
+   be halted immediately by disabling the associated key material.  The
+   token remains valid but unusable until the key is reactivated.  In
+   large, distributed systems with many worker nodes, however, involving
+   an HSM in every transaction is operationally impractical, motivating
+   this extension.
+
 About This Document
 
    This note is to be removed before publishing as an RFC.
@@ -141,7 +151,7 @@ Table of Contents
    *  Rotate or revoke access token keys without affecting the refresh
       token flow
 
-   *  Reduce the blast radius of a key compromise
+   *  Reduce the blast radius of access token key compromise
 
    The extension is fully backward compatible with [DPoP] as clients and
    authorization servers that do not implement this specification
@@ -564,12 +574,12 @@ Table of Contents
       attacker-controlled access token key.  Separation merely forces AS
       interaction.
 
-   Implementers SHOULD store the refresh-token key in a hardened or
-   server-side environment and allow the access-token key to reside in a
-   more transient context such as a front-end instance or mobile device.
-   Key separation materially reduces the blast radius of access token
-   key compromise but does not reduce the impact of a full refresh token
-   key compromise.
+   Implementers SHOULD store the refresh-token key in an HSM or hardened
+   server-side environment and MAY allow the access-token key to reside
+   in a more transient context such as a front-end instance or mobile
+   device.  Key separation materially reduces the blast radius of access
+   token key compromise but does not reduce the impact of a full refresh
+   token key compromise.
 
 8.2.  Replay Protection and Nonces
 
