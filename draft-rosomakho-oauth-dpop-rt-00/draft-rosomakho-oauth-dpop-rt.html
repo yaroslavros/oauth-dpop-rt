@@ -1,0 +1,2081 @@
+<!DOCTYPE html>
+<html lang="en" class="Internet-Draft">
+<head>
+<meta charset="utf-8">
+<meta content="Common,Latin" name="scripts">
+<meta content="initial-scale=1.0" name="viewport">
+<title>Separating DPoP Bindings for Access and Refresh Tokens</title>
+<meta content="Yaroslav Rosomakho" name="author">
+<meta content="Loren Weith" name="author">
+<meta content="
+       This document defines an extension to OAuth 2.0 Demonstrating Proof-of-Possession at the application level (DPoP, RFC 9449) that allows refresh tokens to be bound to a different proof-of-possession key than access tokens. In the existing specification, a single DPoP proof is used to bind both tokens to the same key material. However, in many deployments, refresh tokens and access tokens are stored and managed in different security contexts. To support this operational separation, this document introduces a new HTTP header field, DPoP-RT, and corresponding DPoP-RT-Nonce mechanism, enabling independent proof-of-possession for refresh token use while preserving compatibility with existing DPoP-bound access tokens. 
+    " name="description">
+<meta content="xml2rfc 3.30.2" name="generator">
+<meta content="DPoP" name="keyword">
+<meta content="refresh token" name="keyword">
+<meta content="separation" name="keyword">
+<meta content="draft-rosomakho-oauth-dpop-rt-latest" name="ietf.draft">
+<!-- Generator version information:
+  xml2rfc 3.30.2
+    Python 3.12.11
+    ConfigArgParse 1.7
+    google-i18n-address 3.1.1
+    intervaltree 3.1.0
+    Jinja2 3.1.6
+    lxml 5.3.1
+    platformdirs 4.4.0
+    pycountry 24.6.1
+    PyYAML 6.0.2
+    requests 2.32.5
+    setuptools 80.9.0
+    wcwidth 0.2.14
+-->
+<link href="draft-rosomakho-oauth-dpop-rt.xml" rel="alternate" type="application/rfc+xml">
+<link href="#copyright" rel="license">
+<style type="text/css">@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Italic'), local('Lora-Italic'), url('https://martinthomson.github.io/rfc-css/fonts/lora-italic-cyrillic-ext.woff2') format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Italic'), local('Lora-Italic'), url('https://martinthomson.github.io/rfc-css/fonts/lora-italic-cyrillic-ext.woff2') format('woff2');
+  unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Italic'), local('Lora-Italic'), url('https://martinthomson.github.io/rfc-css/fonts/lora-italic-vietnamese.woff2') format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+1EA0-1EF9, U+20AB;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Italic'), local('Lora-Italic'), url('https://martinthomson.github.io/rfc-css/fonts/lora-italic-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+
+@font-face {
+  font-family: 'Lora';
+  font-style: italic;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Italic'), local('Lora-Italic'), url('https://martinthomson.github.io/rfc-css/fonts/lora-italic-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Regular'), local('Lora-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/lora-regular-cyrillic-ext.woff2') format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Regular'), local('Lora-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/lora-regular-cyrillic.woff2') format('woff2');
+  unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Regular'), local('Lora-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/lora-regular-vietnamese.woff2') format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+1EA0-1EF9, U+20AB;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Regular'), local('Lora-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/lora-regular-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Lora Regular'), local('Lora-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/lora-regular-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('Lora Bold'), local('Lora-Bold'), url('https://martinthomson.github.io/rfc-css/fonts/lora-bold-cyrillic-ext.woff2') format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C88, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('Lora Bold'), local('Lora-Bold'), url('https://martinthomson.github.io/rfc-css/fonts/lora-bold-cyrillic.woff2') format('woff2');
+  unicode-range: U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('Lora Bold'), local('Lora-Bold'), url('https://martinthomson.github.io/rfc-css/fonts/lora-bold-vietnamese.woff2') format('woff2');
+  unicode-range: U+0102-0103, U+0110-0111, U+1EA0-1EF9, U+20AB;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('Lora Bold'), local('Lora-Bold'), url('https://martinthomson.github.io/rfc-css/fonts/lora-bold-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: local('Lora Bold'), local('Lora-Bold'), url('https://martinthomson.github.io/rfc-css/fonts/lora-bold-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Lora';
+  font-style: normal;
+  font-weight: 600;
+  font-display: swap;
+  src: local('Lora SemiBold'), local('Lora-SemiBold'), url('https://martinthomson.github.io/rfc-css/fonts/lora-semibold-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Oxygen Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Oxygen Mono'), local('OxygenMono-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/oxygenmono-regular-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-024F, U+0259, U+1E00-1EFF, U+2020, U+20A0-20AB, U+20AD-20CF, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Oxygen Mono';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: local('Oxygen Mono'), local('OxygenMono-Regular'), url('https://martinthomson.github.io/rfc-css/fonts/oxygenmono-regular-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+2000-206F, U+2074, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: italic;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-italic-cyrillic-ext.woff2') format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: italic;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-italic-cyrillic.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: italic;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-italic-greek.woff2') format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: italic;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-italic-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: italic;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-italic-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: normal;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-regular-cyrillic-ext.woff2') format('woff2');
+  unicode-range: U+0460-052F, U+1C80-1C8A, U+20B4, U+2DE0-2DFF, U+A640-A69F, U+FE2E-FE2F;
+}
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: normal;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-regular-cyrillic.woff2') format('woff2');
+  unicode-range: U+0301, U+0400-045F, U+0490-0491, U+04B0-04B1, U+2116;
+}
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: normal;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-regular-greek.woff2') format('woff2');
+  unicode-range: U+0370-0377, U+037A-037F, U+0384-038A, U+038C, U+038E-03A1, U+03A3-03FF;
+}
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: normal;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-regular-latin-ext.woff2') format('woff2');
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304, U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C0, U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Sofia Sans Semi Condensed';
+  font-style: normal;
+  font-weight: 1 1000;
+  src: url('https://martinthomson.github.io/rfc-css/fonts/sofiasanssemicondensed-regular-latin.woff2') format('woff2');
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC, U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215, U+FEFF, U+FFFD;
+}
+
+:root {
+  color-scheme: light dark;
+  --background-color: #fff;
+  --text-color: #222;
+  --title-color: #191919;
+  --link-color: #2a6496;
+  --highlight-color: #f9f9f9;
+  --line-color: #eee;
+  --pilcrow-weak: #ddd;
+  --pilcrow-strong: #bbb;
+  --small-font-size: 14.5px;
+  --font-mono: 'Oxygen Mono', monospace;
+  --font-title: "Sofia Sans Semi Condensed", sans-serif;
+  scrollbar-color: #bbb #eee;
+}
+body {
+  max-width: 600px;
+  margin: 75px auto;
+  padding: 0 5px;
+  color: var(--text-color);
+  background-color: var(--background-color);
+  font: 16px/22px "Lora", serif;
+  scroll-behavior: smooth;
+}
+
+.ears {
+  display: none;
+}
+
+/* headings */
+section {
+  clear: both;
+}
+.section-number {
+  padding-right: 0.5em;
+}
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--font-title);
+  font-weight: 680;
+  margin: 0.8em 0 0.3em;
+  font-size-adjust: 0.5;
+  color: var(--title-color);
+}
+h1#title {
+  font-size: 32px;
+  line-height: 40px;
+  clear: both;
+}
+h1#title, h1#rfcnum {
+  margin: 1.5em 0 0.2em;
+}
+h1#rfcnum + h1#title {
+  margin: 0.2em 0;
+}
+
+h1, h2, h3 {
+  font-size: 22px;
+  line-height: 27px;
+}
+h4, h5, h6 {
+  font-size: 20px;
+  line-height: 24px;
+}
+
+/* general structure */
+.author {
+  padding-bottom: 0.3em;
+  vertical-align: top;
+}
+#abstract+p {
+  font-size: 18px;
+  line-height: 24px;
+}
+#abstract+p code, #abstract+p samp, #abstract+p tt {
+  font-size: 16px;
+  line-height: 0;
+}
+
+p {
+  padding: 0;
+  margin: 0.5em 0;
+  text-align: left;
+}
+div {
+  margin: 0;
+}
+.alignRight.art-text {
+  background-color: var(--highlight-color);
+  border: 1px solid var(--line-color);
+  border-radius: 3px;
+  padding: 0.5em 1em 0;
+  margin-bottom: 0.5em;
+}
+.alignRight.art-text pre {
+  padding: 0;
+  width: auto;
+}
+.alignRight {
+  margin: 1em 0;
+}
+.alignRight > *:first-child {
+  border: none;
+  margin: 0;
+  float: right;
+  clear: both;
+}
+.alignRight > *:nth-child(2) {
+  clear: both;
+  display: block;
+  border: none;
+}
+svg {
+  display: block;
+}
+/* font-family isn't space-separated, but =~ will have to do */
+svg[font-family~="monospace" i], svg [font-family~="monospace" i] {
+  font-family: var(--font-mono);
+}
+.alignCenter.art-text {
+  background-color: var(--highlight-color);
+  border: 1px solid var(--line-color);
+  border-radius: 3px;
+  padding: 0.5em 1em 0;
+  margin-bottom: 0.5em;
+}
+.alignCenter.art-text pre {
+  padding: 0;
+  width: auto;
+}
+.alignCenter {
+  margin: 1em 0;
+}
+.alignCenter > *:first-child {
+  border: none;
+  /* this isn't optimal, but it's an existence proof.  PrinceXML doesn't
+     support flexbox yet.
+  */
+  display: table;
+  margin: 0 auto;
+}
+
+/* lists */
+ol, ul {
+  padding: 0;
+  margin: 0 0 0.5em 2em;
+  & :is(ol, ul) {
+    margin-left: 1em;
+  }
+}
+li {
+  margin: 0 0 0.25em 0;
+}
+ul.empty, .ulEmpty {
+  list-style-type: none;
+  & li {
+    margin-top: 0.5em;
+  }
+}
+:is(ul, ol).compact, .ulCompact, .olCompact {
+  margin: 0 0 0 2em;
+  & li {
+    margin: 0;
+    & :first-child { margin-top: 0; }
+    & :last-child { margin-bottom: 0; }
+  }
+}
+
+/* definition lists */
+dl {
+  clear: left;
+  --indent: 3ch;
+  /* --indent: attr(indent ch); not supported in any browser, but we can dream */
+  &.olPercent {
+    --indent: 5ch;
+    & > dt {
+      min-width: calc(var(--indent) - 2ch);
+    }
+  }
+  &.olPercent > dt {
+    float: none;
+  }
+
+  dl > dd > & {
+    margin-top: 0.5em;
+    margin-bottom: 0;
+  }
+}
+dl:not(.dlNewline) > dt {
+  float: left;
+  margin-right: 2ch;
+  min-width: 8ch;
+}
+dl > dd {
+  margin-bottom: .8em;
+  margin-left: var(--indent) !important; /* stupid element overrides */
+  min-height: 2ex;
+}
+:is(dl.compact, .dlCompact) > dd {
+  margin-bottom: 0;
+  & > :is(:first-child, .break:first-child + *) {
+    margin-top: 0;
+  }
+  & > :is(:last-child) {
+    margin-bottom: 0;
+  }
+}
+:is(dd, span).break {
+  display: none;
+}
+
+/* links */
+a, a[href].selfRef:hover {
+  text-decoration: none;
+}
+a[href] {
+  color: var(--link-color);
+}
+a[href].selfRef, .iref + a[href].internal {
+  color: var(--text-color);
+}
+a[href]:hover {
+  text-decoration: underline;
+}
+a[href].selfRef:hover {
+  background-color: var(--highlight-color);
+}
+a.xref:is(.cite, .auto), :is(#status-of-memo, #copyright) a {
+  white-space: nowrap;
+}
+
+/* Figures */
+tt, code, pre {
+  background-color: var(--highlight-color);
+  font: 14px/22px var(--font-mono);
+}
+tt, code {
+  /* changing the font for inline elements leads to different ascender
+     and descender heights; as we want to retain baseline alignment,
+     remove leading to avoid altering the final height of lines
+     note: this fails if these blocks take an entire line,
+     a different solution would be great */
+  line-height: 0;
+}
+:is(h1, h2, h3, h4, h5, h6) :is(tt, code) {
+  font-size: 84%;
+}
+pre {
+  border: 1px solid var(--line-color);
+  font-size: 13.5px;
+  line-height: 16px;
+  letter-spacing: -0.2px;
+  margin: 5px;
+  padding: 5px;
+}
+img {
+  max-width: 100%;
+}
+figure {
+  margin: 0.5em 0;
+  padding: 0;
+}
+figure blockquote {
+  margin: 0.8em 0.4em 0.4em;
+}
+figcaption, caption {
+  font-style: italic;
+  margin: 0.5em 1.5em;
+  text-align: left;
+  caption-side: bottom;
+}
+@media screen {
+  /* Auto-collapse boilerplate. */
+  :is(#status-of-memo, #copyright) p {
+    margin: -2px 0;
+    max-height: 0;
+    transition: max-height 2s ease, margin 0.5s ease 0.5s;
+    overflow: hidden;
+  }
+  :is(#status-of-memo, #copyright):hover p,
+  :is(#status-of-memo, #copyright) h2:target ~ p {
+    margin: 0.5em 0;
+    max-height: 500px;
+    overflow: auto;
+  }
+  pre, svg {
+    display: inline-block;
+    /* In the horizontal direction, sometimes people make over-sized figures.
+       Scrollbars for those is therefore necessary: auto adds them as necessary..
+       In the vertical direction, the line-height can combine with the font
+       asender/descender height to produce scrollbars: hidden avoids that. */
+    overflow: auto hidden;
+  }
+  pre {
+    max-width: 100%;
+    width: calc(100% - 22px - 1em);
+  }
+  svg {
+    max-width: calc(100% - 22px - 1em);
+  }
+  figure pre {
+    display: block;
+    width: calc(100% - 25px);
+  }
+  :is(pre, svg) + .pilcrow {
+    display: inline-block;
+    vertical-align: text-bottom;
+    padding-bottom: 8px;
+  }
+}
+
+/* aside, blockquote */
+aside, blockquote {
+  margin-left: 0;
+  padding: 0 2em;
+  font-style: italic;
+}
+blockquote {
+  margin: 1em 0;
+}
+cite {
+  display: block;
+  text-align: right;
+  font-style: italic;
+}
+
+/* tables */
+table {
+  width: auto;
+  max-width: 100%;
+  margin: 0 0 1em;
+  border-collapse: collapse;
+}
+table.right {
+  margin-left: auto;
+}
+table.center {
+  margin-left: auto;
+  margin-right: auto;
+}
+table.left {
+  margin-right: auto;
+}
+table .text-left {
+  text-align: left;
+}
+table .text-center {
+  text-align: center;
+}
+table .text-right {
+  text-align: right;
+}
+
+thead, tbody {
+  border: 1px solid var(--line-color);
+}
+th, td {
+  text-align: left;
+  vertical-align: top;
+  padding: 5px 10px;
+}
+th {
+  background-color: var(--line-color);
+}
+:is(tr:nth-child(2n), thead+tbody > tr:nth-child(2n+1)) > td {
+  background-color: var(--background-color);
+}
+:is(tr:nth-child(2n+1), thead+tbody > tr:nth-child(2n)) > td {
+  background-color: var(--highlight-color);
+}
+table caption {
+  margin: 0;
+  padding: 3px 0 3px 1em;
+}
+table p {
+  margin: 0;
+}
+
+/* pilcrow */
+a.pilcrow {
+  margin-left: 3px;
+  opacity: 0.2;
+  user-select: none;
+  &[href] {
+    color: var(--pilcrow-weak);
+    &:hover { text-decoration: none; }
+  }
+}
+@media not print {
+  :hover > a.pilcrow {
+    opacity: 1;
+  }
+  a.pilcrow[href]:hover {
+    color: var(--pilcrow-strong);
+    background-color: transparent;
+  }
+}
+@media print {
+  a.pilcrow {
+    display: none;
+  }
+}
+
+/* misc */
+hr {
+  border: 0;
+  border-top: 1px solid var(--line-color);
+}
+.bcp14 {
+  font-variant: small-caps;
+  font-weight: 600;
+  font-size: var(--small-font-size);
+}
+.role {
+  font-variant: all-small-caps;
+}
+sub, sup {
+  line-height: 1;
+  font-size: 80%;
+}
+
+/* info block */
+#identifiers {
+  margin: 0;
+  font-size: var(--small-font-size);
+  line-height: 18px;
+  --identifier-width: 15ch;
+  & dt {
+    width: var(--identifier-width);
+    min-width: var(--identifier-width);
+    clear: left;
+    float: left;
+    text-align: right;
+    margin-right: 1ch;
+  }
+  & dd {
+    margin: 0;
+    margin-left: calc(1em + var(--identifier-width)) !important;
+    min-width: 5em;
+  }
+  & .authors {
+    & .author {
+      display: inline-block;
+      margin-right: 1.5em;
+    }
+    & .org {
+      font-style: italic;
+    }
+  }
+}
+
+/* The prepared/rendered info at the very bottom of the page */
+.docInfo {
+  color: #999;
+  font-size: 0.9em;
+  font-style: italic;
+  margin-top: 2em;
+}
+.docInfo .prepared {
+  float: right;
+}
+
+/* table of contents */
+#toc {
+  padding: 0.75em 0 2em 0;
+  margin-bottom: 1em;
+
+  & nav {
+    & ul {
+      margin: 0 0.5em 0 0;
+      padding: 0;
+      list-style: none;
+    }
+    & li {
+      line-height: 1.3em;
+      margin: 2px 0;
+      padding-left: 1.2em;
+      text-indent: -1.2em;
+    }
+  }
+  & a.xref {
+    white-space: normal;
+  }
+}
+
+.references {
+  & > dt {
+    text-align: right;
+    font-weight: bold;
+    min-width: 10ch;
+    margin-right: 1.5ch;
+    &:target::before {
+      content: "⇒";
+      margin: 0 10px 0 -25px;
+    }
+  }
+  & > dd {
+    margin-left: 12ch !important;
+    overflow: visible;
+    & .refInstance {
+      margin-bottom: 0.8em;
+    }
+    & .ascii {
+      margin-bottom: 0.25em;
+    }
+  }
+}
+
+#rfc\.index\.index + ul {
+  margin-left: 0;
+}
+
+/* authors */
+address.vcard {
+  font-style: normal;
+  max-width: 20em;
+  margin: 1em auto 1em 0;
+
+  & .nameRole {
+    font-weight: 700;
+    margin-left: 0;
+  }
+  & .label {
+    margin: 0.5em 0;
+  }
+  & .type {
+    display: none;
+  }
+  & .alternative-contact {
+    margin: 0.5em 0 0.25em 0;
+  }
+  & .non-ascii {
+    margin: 0 0 0 2em;
+  }
+  & div.left {
+    text-align: left;
+  }
+  & div.right {
+    text-align: right;
+  }
+}
+
+hr.addr {
+  border-top: 1px dashed;
+  margin: 0;
+  color: #ddd;
+  max-width: calc(100% - 16px);
+}
+@media (min-width: 500px) {
+  #authors-addresses > section {
+    column-count: 2;
+    column-gap: 20px;
+  }
+  #authors-addresses > section > h2 {
+    column-span: all;
+  }
+  /* hack for break-inside: avoid-column */
+  #authors-addresses address {
+    display: inline-block;
+    break-inside: avoid-column;
+  }
+}
+
+/* Comments */
+.rfcEditorRemove p:first-of-type {
+  font-style: italic;
+}
+.cref {
+  background-color: rgba(249, 232, 105, 0.3);
+  padding: 2px 4px;
+}
+.crefSource {
+  font-style: italic;
+}
+
+@media screen {
+  #toc nav {
+    font-family: var(--font-title);
+    font-weight: 360;
+    & > ul { margin-bottom: 2em; }
+    & ul {
+      margin: 0 0 0 4px;
+      & :is(p, li) {
+        margin: 2px 0;
+      }
+    }
+  }
+  #toc a.toplink {
+    float: right;
+  }
+}
+@media not screen {
+  #toc a.toplink {
+    display: none;
+  }
+}
+
+
+/* TOC layout for smaller screens */
+@media screen and (max-width: 929px) {
+  #toc {
+    position: fixed;
+    z-index: 2;
+    top: 0;
+    right: 0;
+    padding: 1px 0 0 0;
+    margin: 0;
+    border-bottom: 1px solid #ccc;
+    opacity: 0.6;
+  }
+  #toc h2 {
+    margin: 0;
+    padding: 2px 0 2px 6px;
+    padding-right: 1em;
+    font-size: 18px;
+    line-height: 24px;
+    min-width: 190px;
+    text-align: right;
+    background-color: #444;
+    color: white;
+    cursor: pointer;
+    &::before { /* css hamburger */
+      float: right;
+      position: relative;
+      width: 1em;
+      height: 1px;
+      left: -164px;
+      margin: 8px 0 0 0;
+      background: white none repeat scroll 0 0;
+      box-shadow: 0 4px 0 0 white, 0 8px 0 0 white;
+      content: "";
+    }
+  }
+  #toc nav {
+    display: none;
+    background-color: var(--background-color);
+    padding: 0.5em 1em 1em;
+    overflow: auto;
+    overscroll-behavior: contain;
+    height: calc(100vh - 48px);
+    border-left: 1px solid #ddd;
+  }
+  #toc.active {
+    opacity: 1;
+    & nav { display: block; }
+  }
+  /* Make the collapsed ToC header render white on gray also when it's a link */
+  #toc h2 a,
+  #toc h2 a:is(:link, :focus, :hover),
+  #toc a.toplink,
+  #toc a.toplink:hover {
+    color: white;
+    background-color: #444;
+    text-decoration: none;
+  }
+  #toc a.toplink {
+    margin: 2px 0.5em 0;
+  }
+}
+
+/* TOC layout for wide screens */
+@media screen and (min-width: 930px) {
+  body {
+    padding-right: 360px;
+    padding-right: calc(min(180px + 20%, 500px));
+  }
+  #toc {
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    right: calc(50vw - 480px);
+    width: 312px;
+    margin: 0;
+    padding: 0;
+    z-index: 1;
+  }
+  #toc h2 {
+    margin: 0;
+    padding: 0.25em 1em 1em 0;
+  }
+  #toc nav {
+    display: block;
+    height: calc(90vh - 84px);
+    bottom: 0;
+    padding: 0.5em 0 2em;
+    overflow: auto;
+    overscroll-behavior: contain;
+    scrollbar-width: thin;
+  }
+  img { /* future proofing */
+    max-width: 100%;
+    height: auto;
+  }
+  #toc a.toplink {
+    margin: 8px 0.5em 0;
+  }
+}
+
+/* pagination */
+@media print {
+  body {
+    width: 100%;
+  }
+  p {
+    orphans: 3;
+    widows: 3;
+  }
+  #n-copyright-notice {
+    border-bottom: none;
+  }
+  #toc, #n-introduction {
+    page-break-before: always;
+  }
+  #toc {
+    border-top: none;
+    padding-top: 0;
+  }
+  figure, pre, .vcard {
+    page-break-inside: avoid;
+  }
+  h1, h2, h3, h4, h5, h6 {
+    page-break-after: avoid;
+  }
+  :is(h2, h3, h4, h5, h6)+*, dd {
+    page-break-before: avoid;
+  }
+  pre {
+    white-space: pre-wrap;
+    word-wrap: break-word;
+    font-size: 10pt;
+  }
+  table {
+    border: 1px solid #ddd;
+  }
+  td {
+    border-top: 1px solid #ddd;
+  }
+}
+
+@page :first {
+  padding-top: 0;
+  @top-left {
+    content: normal;
+    border: none;
+  }
+  @top-center {
+    content: normal;
+    border: none;
+  }
+  @top-right {
+    content: normal;
+    border: none;
+  }
+}
+
+@page {
+  size: A4;
+  margin-bottom: 45mm;
+  padding-top: 20px;
+}
+
+/* Dark mode. */
+@media (prefers-color-scheme: dark) {
+:root {
+  --background-color: #121212;
+  --text-color: #f0f0f0;
+  --title-color: #fff;
+  --link-color: #4da4f0;
+  --highlight-color: #282828;
+  --line-color: #444;
+  --pilcrow-weak: #444;
+  --pilcrow-strong: #666;
+  scrollbar-color: #777 #333;
+}
+}
+
+/* SVG Trick: a prefix match works because only black and white are allowed */
+svg :is([stroke="black"], [stroke^="#000"]) {
+  stroke: var(--text-color);
+}
+svg :is([stroke="white"], [stroke^="#fff"]) {
+  stroke: var(--background-color);
+}
+svg :is([fill="black"], [fill^="#000"], :not([fill])) {
+  fill: var(--text-color);
+}
+svg :is([fill="white"], [fill^="#fff"]) {
+  fill: var(--background-color);
+}
+</style>
+
+</head>
+<body class="xml2rfc">
+<table class="ears">
+<thead><tr>
+<td class="left">Internet-Draft</td>
+<td class="center">Separate DPoP for access and refresh tok</td>
+<td class="right">October 2025</td>
+</tr></thead>
+<tfoot><tr>
+<td class="left">Rosomakho &amp; Weith</td>
+<td class="center">Expires 17 April 2026</td>
+<td class="right">[Page]</td>
+</tr></tfoot>
+</table>
+<div id="external-metadata" class="document-information"></div>
+<div id="internal-metadata" class="document-information">
+<dl id="identifiers">
+<dt class="label-workgroup">Workgroup:</dt>
+<dd class="workgroup">Web Authorization Protocol</dd>
+<dt class="label-internet-draft">Internet-Draft:</dt>
+<dd class="internet-draft">draft-rosomakho-oauth-dpop-rt-latest</dd>
+<dt class="label-published">Published:</dt>
+<dd class="published">
+<time datetime="2025-10-14" class="published">14 October 2025</time>
+    </dd>
+<dt class="label-intended-status">Intended Status:</dt>
+<dd class="intended-status">Informational</dd>
+<dt class="label-expires">Expires:</dt>
+<dd class="expires"><time datetime="2026-04-17">17 April 2026</time></dd>
+<dt class="label-authors">Authors:</dt>
+<dd class="authors">
+<div class="author">
+      <div class="author-name">Y. Rosomakho</div>
+<div class="org">Zscaler</div>
+</div>
+<div class="author">
+      <div class="author-name">L. Weith</div>
+<div class="org">Zscaler</div>
+</div>
+</dd>
+</dl>
+</div>
+<h1 id="title">Separating DPoP Bindings for Access and Refresh Tokens</h1>
+<section id="section-abstract">
+      <h2 id="abstract"><a href="#abstract" class="selfRef">Abstract</a></h2>
+<p id="section-abstract-1">This document defines an extension to OAuth 2.0 Demonstrating Proof-of-Possession at the application level (DPoP, RFC 9449) that allows refresh tokens to be bound to a different proof-of-possession key than access tokens. In the existing specification, a single DPoP proof is used to bind both tokens to the same key material. However, in many deployments, refresh tokens and access tokens are stored and managed in different security contexts. To support this operational separation, this document introduces a new HTTP header field, DPoP-RT, and corresponding DPoP-RT-Nonce mechanism, enabling independent proof-of-possession for refresh token use while preserving compatibility with existing DPoP-bound access tokens.<a href="#section-abstract-1" class="pilcrow">¶</a></p>
+</section>
+<section class="note rfcEditorRemove" id="section-note.1">
+      <h2 id="name-about-this-document">
+<a href="#name-about-this-document" class="section-name selfRef">About This Document</a>
+      </h2>
+<p id="section-note.1-1">This note is to be removed before publishing as an RFC.<a href="#section-note.1-1" class="pilcrow">¶</a></p>
+<p id="section-note.1-2">
+        The latest revision of this draft can be found at <span><a href="https://yaroslavros.github.io/oauth-dpop-rt/draft-rosomakho-oauth-dpop-rt.html">https://yaroslavros.github.io/oauth-dpop-rt/draft-rosomakho-oauth-dpop-rt.html</a></span>.
+        Status information for this document may be found at <span><a href="https://datatracker.ietf.org/doc/draft-rosomakho-oauth-dpop-rt/">https://datatracker.ietf.org/doc/draft-rosomakho-oauth-dpop-rt/</a></span>.<a href="#section-note.1-2" class="pilcrow">¶</a></p>
+<p id="section-note.1-3">
+        Discussion of this document takes place on the
+        Web Authorization Protocol Working Group mailing list (<span><a href="mailto:oauth@ietf.org">mailto:oauth@ietf.org</a></span>),
+        which is archived at <span><a href="https://mailarchive.ietf.org/arch/browse/oauth/">https://mailarchive.ietf.org/arch/browse/oauth/</a></span>.
+        Subscribe at <span><a href="https://www.ietf.org/mailman/listinfo/oauth/">https://www.ietf.org/mailman/listinfo/oauth/</a></span>.<a href="#section-note.1-3" class="pilcrow">¶</a></p>
+<p id="section-note.1-4">Source for this draft and an issue tracker can be found at
+        <span><a href="https://github.com/yaroslavros/oauth-dpop-rt">https://github.com/yaroslavros/oauth-dpop-rt</a></span>.<a href="#section-note.1-4" class="pilcrow">¶</a></p>
+</section>
+<div id="status-of-memo">
+<section id="section-boilerplate.1">
+        <h2 id="name-status-of-this-memo">
+<a href="#name-status-of-this-memo" class="section-name selfRef">Status of This Memo</a>
+        </h2>
+<p id="section-boilerplate.1-1">
+        This Internet-Draft is submitted in full conformance with the
+        provisions of BCP 78 and BCP 79.<a href="#section-boilerplate.1-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-2">
+        Internet-Drafts are working documents of the Internet Engineering Task
+        Force (IETF). Note that other groups may also distribute working
+        documents as Internet-Drafts. The list of current Internet-Drafts is
+        at <span><a href="https://datatracker.ietf.org/drafts/current/">https://datatracker.ietf.org/drafts/current/</a></span>.<a href="#section-boilerplate.1-2" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-3">
+        Internet-Drafts are draft documents valid for a maximum of six months
+        and may be updated, replaced, or obsoleted by other documents at any
+        time. It is inappropriate to use Internet-Drafts as reference
+        material or to cite them other than as "work in progress."<a href="#section-boilerplate.1-3" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.1-4">
+        This Internet-Draft will expire on 17 April 2026.<a href="#section-boilerplate.1-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="copyright">
+<section id="section-boilerplate.2">
+        <h2 id="name-copyright-notice">
+<a href="#name-copyright-notice" class="section-name selfRef">Copyright Notice</a>
+        </h2>
+<p id="section-boilerplate.2-1">
+            Copyright (c) 2025 IETF Trust and the persons identified as the
+            document authors. All rights reserved.<a href="#section-boilerplate.2-1" class="pilcrow">¶</a></p>
+<p id="section-boilerplate.2-2">
+            This document is subject to BCP 78 and the IETF Trust's Legal
+            Provisions Relating to IETF Documents
+            (<span><a href="https://trustee.ietf.org/license-info">https://trustee.ietf.org/license-info</a></span>) in effect on the date of
+            publication of this document. Please review these documents
+            carefully, as they describe your rights and restrictions with
+            respect to this document. Code Components extracted from this
+            document must include Revised BSD License text as described in
+            Section 4.e of the Trust Legal Provisions and are provided without
+            warranty as described in the Revised BSD License.<a href="#section-boilerplate.2-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="toc">
+<section id="section-toc.1">
+        <a href="#" onclick="scroll(0,0)" class="toplink">▲</a><h2 id="name-table-of-contents">
+<a href="#name-table-of-contents" class="section-name selfRef">Table of Contents</a>
+        </h2>
+<nav class="toc"><ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.1">
+            <p id="section-toc.1-1.1.1" class="keepWithNext"><a href="#section-1" class="auto internal xref">1</a>.  <a href="#name-introduction" class="internal xref">Introduction</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.2">
+            <p id="section-toc.1-1.2.1" class="keepWithNext"><a href="#section-2" class="auto internal xref">2</a>.  <a href="#name-conventions-and-definitions" class="internal xref">Conventions and Definitions</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.3">
+            <p id="section-toc.1-1.3.1" class="keepWithNext"><a href="#section-3" class="auto internal xref">3</a>.  <a href="#name-overview" class="internal xref">Overview</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4">
+            <p id="section-toc.1-1.4.1"><a href="#section-4" class="auto internal xref">4</a>.  <a href="#name-client-use-of-dpop-rt" class="internal xref">Client Use of DPoP-RT</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.1">
+                <p id="section-toc.1-1.4.2.1.1"><a href="#section-4.1" class="auto internal xref">4.1</a>.  <a href="#name-including-dpop-rt-during-to" class="internal xref">Including DPoP-RT during Token Issuance</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.2">
+                <p id="section-toc.1-1.4.2.2.1"><a href="#section-4.2" class="auto internal xref">4.2</a>.  <a href="#name-including-dpop-rt-during-tok" class="internal xref">Including DPoP-RT during Token Refresh</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.3">
+                <p id="section-toc.1-1.4.2.3.1"><a href="#section-4.3" class="auto internal xref">4.3</a>.  <a href="#name-example-requests" class="internal xref">Example Requests</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.4.2.4">
+                <p id="section-toc.1-1.4.2.4.1"><a href="#section-4.4" class="auto internal xref">4.4</a>.  <a href="#name-use-of-nonces" class="internal xref">Use of Nonces</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5">
+            <p id="section-toc.1-1.5.1"><a href="#section-5" class="auto internal xref">5</a>.  <a href="#name-dpop-rt-proof-structure" class="internal xref">DPoP-RT Proof Structure</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.1">
+                <p id="section-toc.1-1.5.2.1.1"><a href="#section-5.1" class="auto internal xref">5.1</a>.  <a href="#name-jws-header" class="internal xref">JWS Header</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.2">
+                <p id="section-toc.1-1.5.2.2.1"><a href="#section-5.2" class="auto internal xref">5.2</a>.  <a href="#name-jwt-claims" class="internal xref">JWT Claims</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.5.2.3">
+                <p id="section-toc.1-1.5.2.3.1"><a href="#section-5.3" class="auto internal xref">5.3</a>.  <a href="#name-construction-and-signing" class="internal xref">Construction and Signing</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6">
+            <p id="section-toc.1-1.6.1"><a href="#section-6" class="auto internal xref">6</a>.  <a href="#name-authorization-server-proces" class="internal xref">Authorization Server Processing</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.1">
+                <p id="section-toc.1-1.6.2.1.1"><a href="#section-6.1" class="auto internal xref">6.1</a>.  <a href="#name-proof-validation" class="internal xref">Proof Validation</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.2">
+                <p id="section-toc.1-1.6.2.2.1"><a href="#section-6.2" class="auto internal xref">6.2</a>.  <a href="#name-token-binding-and-issuance" class="internal xref">Token Binding and Issuance</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.6.2.3">
+                <p id="section-toc.1-1.6.2.3.1"><a href="#section-6.3" class="auto internal xref">6.3</a>.  <a href="#name-dpop-rt-nonce-issuance" class="internal xref">DPoP-RT Nonce Issuance</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7">
+            <p id="section-toc.1-1.7.1"><a href="#section-7" class="auto internal xref">7</a>.  <a href="#name-client-registration-metadat" class="internal xref">Client Registration Metadata</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.7.2.1">
+                <p id="section-toc.1-1.7.2.1.1"><a href="#section-7.1" class="auto internal xref">7.1</a>.  <a href="#name-server-enforcement" class="internal xref">Server Enforcement</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8">
+            <p id="section-toc.1-1.8.1"><a href="#section-8" class="auto internal xref">8</a>.  <a href="#name-security-considerations" class="internal xref">Security Considerations</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.1">
+                <p id="section-toc.1-1.8.2.1.1"><a href="#section-8.1" class="auto internal xref">8.1</a>.  <a href="#name-key-separation-and-compartm" class="internal xref">Key Separation and Compartmentalization</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.8.2.2">
+                <p id="section-toc.1-1.8.2.2.1"><a href="#section-8.2" class="auto internal xref">8.2</a>.  <a href="#name-replay-protection-and-nonce" class="internal xref">Replay Protection and Nonces</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9">
+            <p id="section-toc.1-1.9.1"><a href="#section-9" class="auto internal xref">9</a>.  <a href="#name-iana-considerations" class="internal xref">IANA Considerations</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.1">
+                <p id="section-toc.1-1.9.2.1.1"><a href="#section-9.1" class="auto internal xref">9.1</a>.  <a href="#name-http-header-field-registrat" class="internal xref">HTTP Header Field Registrations</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.2">
+                <p id="section-toc.1-1.9.2.2.1"><a href="#section-9.2" class="auto internal xref">9.2</a>.  <a href="#name-oauth-extensions-error-regi" class="internal xref">OAuth Extensions Error Registry</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.3">
+                <p id="section-toc.1-1.9.2.3.1"><a href="#section-9.3" class="auto internal xref">9.3</a>.  <a href="#name-oauth-dynamic-client-regist" class="internal xref">OAuth Dynamic Client Registration Metadata</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.9.2.4">
+                <p id="section-toc.1-1.9.2.4.1"><a href="#section-9.4" class="auto internal xref">9.4</a>.  <a href="#name-media-type-registration" class="internal xref">Media Type Registration</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10">
+            <p id="section-toc.1-1.10.1"><a href="#section-10" class="auto internal xref">10</a>. <a href="#name-references" class="internal xref">References</a></p>
+<ul class="compact toc ulBare ulEmpty">
+<li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.1">
+                <p id="section-toc.1-1.10.2.1.1"><a href="#section-10.1" class="auto internal xref">10.1</a>.  <a href="#name-normative-references" class="internal xref">Normative References</a></p>
+</li>
+              <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.10.2.2">
+                <p id="section-toc.1-1.10.2.2.1"><a href="#section-10.2" class="auto internal xref">10.2</a>.  <a href="#name-informative-references" class="internal xref">Informative References</a></p>
+</li>
+            </ul>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.11">
+            <p id="section-toc.1-1.11.1"><a href="#appendix-A" class="auto internal xref"></a><a href="#name-acknowledgments" class="internal xref">Acknowledgments</a></p>
+</li>
+          <li class="compact toc ulBare ulEmpty" id="section-toc.1-1.12">
+            <p id="section-toc.1-1.12.1"><a href="#appendix-B" class="auto internal xref"></a><a href="#name-authors-addresses" class="internal xref">Authors' Addresses</a></p>
+</li>
+        </ul>
+</nav>
+</section>
+</div>
+<div id="introduction">
+<section id="section-1">
+      <h2 id="name-introduction">
+<a href="#section-1" class="section-number selfRef">1. </a><a href="#name-introduction" class="section-name selfRef">Introduction</a>
+      </h2>
+<p id="section-1-1">OAuth 2.0 Demonstrating Proof-of-Possession <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span> defines an application-level mechanism by which a client proves possession of a cryptographic key when obtaining and using access tokens. The same proof is applied when the client requests new tokens from the authorization server (AS), binding both access and refresh tokens to the same DPoP key material.<a href="#section-1-1" class="pilcrow">¶</a></p>
+<p id="section-1-2">In practice, many deployments store and manage refresh tokens and access tokens in different security domains. For example, refresh tokens are often retained by a secure backend service or hardware-protected component, while access tokens are consumed by short-lived front-end instances or mobile applications. Binding both token types to the same DPoP key limits operational flexibility, complicates key rotation, and increases the impact of key compromise.<a href="#section-1-2" class="pilcrow">¶</a></p>
+<p id="section-1-3">This document defines a lightweight extension to DPoP that enables the refresh token to be bound to a distinct proof-of-possession key from the one used for access tokens. The mechanism introduces a new HTTP header field, DPoP-RT, which carries a signed JWT proving possession of the refresh token key when the client redeems a refresh token at the token endpoint. An optional DPoP-RT-Nonce response header provides replay protection and freshness guarantees analogous to the existing DPoP-Nonce mechanism.<a href="#section-1-3" class="pilcrow">¶</a></p>
+<p id="section-1-4">This separation allows deployments to:<a href="#section-1-4" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-1-5.1">
+          <p id="section-1-5.1.1">Isolate long-term refresh token credentials from short-lived access token keys<a href="#section-1-5.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="section-1-5.2">
+          <p id="section-1-5.2.1">Rotate or revoke access token keys without affecting the refresh token flow<a href="#section-1-5.2.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="section-1-5.3">
+          <p id="section-1-5.3.1">Reduce the blast radius of access token key compromise<a href="#section-1-5.3.1" class="pilcrow">¶</a></p>
+</li>
+      </ul>
+<p id="section-1-6">The extension is fully backward compatible with <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span> as clients and authorization servers that do not implement this specification continue to operate unchanged, while those that support DPoP-RT can negotiate its use on a per-client basis.<a href="#section-1-6" class="pilcrow">¶</a></p>
+<p id="section-1-7">A motivating scenario for this extension is an agent managing numerous long-lived tokens on behalf of its users, where user participation is often required for revocation. When combined with a hardware security module (HSM), DPoP allows use of a refresh token to be halted immediately by disabling the associated key material. The token remains valid but unusable until the key is reactivated. In large, distributed systems with many worker nodes, however, involving an HSM in every transaction is operationally impractical, motivating this extension.<a href="#section-1-7" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="conventions-and-definitions">
+<section id="section-2">
+      <h2 id="name-conventions-and-definitions">
+<a href="#section-2" class="section-number selfRef">2. </a><a href="#name-conventions-and-definitions" class="section-name selfRef">Conventions and Definitions</a>
+      </h2>
+<p id="section-2-1">The key words "<span class="bcp14">MUST</span>", "<span class="bcp14">MUST NOT</span>", "<span class="bcp14">REQUIRED</span>", "<span class="bcp14">SHALL</span>", "<span class="bcp14">SHALL NOT</span>", "<span class="bcp14">SHOULD</span>", "<span class="bcp14">SHOULD NOT</span>", "<span class="bcp14">RECOMMENDED</span>", "<span class="bcp14">NOT RECOMMENDED</span>",
+"<span class="bcp14">MAY</span>", and "<span class="bcp14">OPTIONAL</span>" in this document are to be interpreted as
+described in BCP 14 <span>[<a href="#RFC2119" class="cite xref">RFC2119</a>]</span> <span>[<a href="#RFC8174" class="cite xref">RFC8174</a>]</span> when, and only when, they
+appear in all capitals, as shown here.<a href="#section-2-1" class="pilcrow">¶</a></p>
+<p id="section-2-2">The terminology and conventions defined in <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span> apply.
+In addition, this document uses the following terms:<a href="#section-2-2" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-2-3">
+        <dt id="section-2-3.1">DPoP-RT proof:</dt>
+        <dd style="margin-left: 1.5em" id="section-2-3.2">
+          <p id="section-2-3.2.1">A JWT carried in the DPoP-RT HTTP header that proves possession of the refresh token key when a refresh token is presented at the token endpoint.<a href="#section-2-3.2.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+<dt id="section-2-3.3">Refresh token key:</dt>
+        <dd style="margin-left: 1.5em" id="section-2-3.4">
+          <p id="section-2-3.4.1">The asymmetric key used to generate DPoP-RT proofs and to which a refresh token is bound.<a href="#section-2-3.4.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+<dt id="section-2-3.5">Access token key:</dt>
+        <dd style="margin-left: 1.5em" id="section-2-3.6">
+          <p id="section-2-3.6.1">The asymmetric key used to generate DPoP proofs and to which access tokens are bound (as defined in <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span>).<a href="#section-2-3.6.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+<dt id="section-2-3.7">DPoP-RT-Nonce:</dt>
+        <dd style="margin-left: 1.5em" id="section-2-3.8">
+          <p id="section-2-3.8.1">An authorization-server-generated value used to ensure freshness of DPoP-RT proofs, analogous to the DPoP-Nonce defined in <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span>.<a href="#section-2-3.8.1" class="pilcrow">¶</a></p>
+</dd>
+      <dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="overview">
+<section id="section-3">
+      <h2 id="name-overview">
+<a href="#section-3" class="section-number selfRef">3. </a><a href="#name-overview" class="section-name selfRef">Overview</a>
+      </h2>
+<p id="section-3-1">This specification extends <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span> by introducing a second proof-of-possession header, DPoP-RT, which is used to bind refresh tokens to a distinct key from the one used for access tokens. The mechanism allows authorization servers (AS) and clients to maintain separate key lifecycles for access and refresh tokens while preserving backward compatibility with existing DPoP deployments.<a href="#section-3-1" class="pilcrow">¶</a></p>
+<p id="section-3-2">When a client initially requests tokens (for example, during an authorization code exchange), it <span class="bcp14">MAY</span> include both:<a href="#section-3-2" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-3-3.1">
+          <p id="section-3-3.1.1">a DPoP header — proving possession of the access token key, and<a href="#section-3-3.1.1" class="pilcrow">¶</a></p>
+</li>
+        <li class="normal" id="section-3-3.2">
+          <p id="section-3-3.2.1">a DPoP-RT header — proving possession of the refresh token key to which any issued refresh token will be bound.<a href="#section-3-3.2.1" class="pilcrow">¶</a></p>
+</li>
+      </ul>
+<p id="section-3-4">If the DPoP-RT header is omitted, the AS follows the behavior defined in <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span> and binds both tokens to the same key from the DPoP proof.<a href="#section-3-4" class="pilcrow">¶</a></p>
+<p id="section-3-5">When the client later uses the refresh token to obtain a new access token, it includes a new DPoP-RT proof (signed by refresh key) and a DPoP proof (signed by access key) if a DPoP-bound access token is to be issued. The authorization server <span class="bcp14">MUST NOT</span> infer the access token key from earier tokens.<a href="#section-3-5" class="pilcrow">¶</a></p>
+<p id="section-3-6">The AS validates the DPoP-RT proof before processing the refresh request. If validation succeeds, the AS issues a new access token bound to the key demonstrated in the DPoP header, and, optionally, a new refresh token bound to the key demonstrated in the DPoP-RT header.<a href="#section-3-6" class="pilcrow">¶</a></p>
+<p id="section-3-7">To ensure freshness and replay protection, the AS may provide a DPoP-RT-Nonce response header, whose value the client includes as a nonce claim in subsequent DPoP-RT proofs. This nonce mechanism operates independently from the DPoP-Nonce defined in <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span>.<a href="#section-3-7" class="pilcrow">¶</a></p>
+<p id="section-3-8">The following diagram illustrates a complete flow:<a href="#section-3-8" class="pilcrow">¶</a></p>
+<span id="name-overall-dpop-and-dpop-rt-fl"></span><div id="overview-flow">
+<figure id="figure-1">
+        <div id="section-3-9.1">
+          <div class="alignLeft art-svg artwork" id="section-3-9.1.1">
+<svg xmlns="http://www.w3.org/2000/svg" version="1.1" height="368" width="472" viewBox="0 0 472 368" class="diagram" text-anchor="middle" font-family="monospace" font-size="13px" stroke-linecap="round">
+              <path d="M 8,32 L 8,80" fill="none" stroke="black"></path>
+              <path d="M 40,88 L 40,352" fill="none" stroke="black"></path>
+              <path d="M 80,32 L 80,80" fill="none" stroke="black"></path>
+              <path d="M 336,32 L 336,80" fill="none" stroke="black"></path>
+              <path d="M 400,88 L 400,352" fill="none" stroke="black"></path>
+              <path d="M 464,32 L 464,80" fill="none" stroke="black"></path>
+              <path d="M 8,32 L 80,32" fill="none" stroke="black"></path>
+              <path d="M 336,32 L 464,32" fill="none" stroke="black"></path>
+              <path d="M 8,80 L 80,80" fill="none" stroke="black"></path>
+              <path d="M 336,80 L 464,80" fill="none" stroke="black"></path>
+              <path d="M 56,160 L 384,160" fill="none" stroke="black"></path>
+              <path d="M 56,224 L 384,224" fill="none" stroke="black"></path>
+              <path d="M 56,304 L 384,304" fill="none" stroke="black"></path>
+              <path d="M 56,352 L 384,352" fill="none" stroke="black"></path>
+              <polygon class="arrowhead" points="392,304 380,298.4 380,309.6" fill="black" transform="rotate(0,384,304)"></polygon>
+              <polygon class="arrowhead" points="392,160 380,154.4 380,165.6" fill="black" transform="rotate(0,384,160)"></polygon>
+              <polygon class="arrowhead" points="64,352 52,346.4 52,357.6" fill="black" transform="rotate(180,56,352)"></polygon>
+              <polygon class="arrowhead" points="64,224 52,218.4 52,229.6" fill="black" transform="rotate(180,56,224)"></polygon>
+              <g class="text">
+                <text x="44" y="52">Client</text>
+                <text x="400" y="52">Authorization</text>
+                <text x="396" y="68">Server</text>
+                <text x="72" y="116">(1)</text>
+                <text x="144" y="116">Authorization</text>
+                <text x="220" y="116">code</text>
+                <text x="276" y="116">exchange</text>
+                <text x="112" y="132">DPoP:</text>
+                <text x="164" y="132">&lt;proof</text>
+                <text x="212" y="132">with</text>
+                <text x="244" y="132">AT</text>
+                <text x="276" y="132">key&gt;</text>
+                <text x="124" y="148">DPoP-RT:</text>
+                <text x="188" y="148">&lt;proof</text>
+                <text x="236" y="148">with</text>
+                <text x="268" y="148">RT</text>
+                <text x="300" y="148">key&gt;</text>
+                <text x="68" y="180">AS</text>
+                <text x="108" y="180">binds:</text>
+                <text x="116" y="196">Access</text>
+                <text x="168" y="196">Token</text>
+                <text x="204" y="196">to</text>
+                <text x="228" y="196">AT</text>
+                <text x="256" y="196">key</text>
+                <text x="300" y="196">(DPoP)</text>
+                <text x="120" y="212">Refresh</text>
+                <text x="176" y="212">Token</text>
+                <text x="212" y="212">to</text>
+                <text x="236" y="212">RT</text>
+                <text x="264" y="212">key</text>
+                <text x="320" y="212">(DPoP-RT)</text>
+                <text x="72" y="260">(2)</text>
+                <text x="120" y="260">Refresh</text>
+                <text x="176" y="260">token</text>
+                <text x="232" y="260">request</text>
+                <text x="112" y="276">DPoP:</text>
+                <text x="164" y="276">&lt;proof</text>
+                <text x="212" y="276">with</text>
+                <text x="248" y="276">new</text>
+                <text x="276" y="276">AT</text>
+                <text x="308" y="276">key&gt;</text>
+                <text x="124" y="292">DPoP-RT:</text>
+                <text x="188" y="292">&lt;proof</text>
+                <text x="236" y="292">with</text>
+                <text x="268" y="292">RT</text>
+                <text x="300" y="292">key&gt;</text>
+                <text x="68" y="324">AS</text>
+                <text x="120" y="324">validates</text>
+                <text x="192" y="324">DPoP-RT</text>
+                <text x="240" y="324">and</text>
+                <text x="284" y="324">issues</text>
+                <text x="328" y="324">new</text>
+                <text x="356" y="324">AT</text>
+                <text x="124" y="340">optionally</text>
+                <text x="200" y="340">rotates</text>
+                <text x="244" y="340">RT</text>
+                <text x="280" y="340">bound</text>
+                <text x="316" y="340">to</text>
+                <text x="340" y="340">RT</text>
+                <text x="368" y="340">key</text>
+              </g>
+            </svg><a href="#section-3-9.1.1" class="pilcrow">¶</a>
+</div>
+</div>
+<figcaption><a href="#figure-1" class="selfRef">Figure 1</a>:
+<a href="#name-overall-dpop-and-dpop-rt-fl" class="selfRef">Overall DPoP and DPoP-RT flow</a>
+        </figcaption></figure>
+</div>
+<p id="section-3-10">This explicit dual-key model ensures that each token binding key is known and verifiable by the AS at issuance time, simplifying validation and preventing rebinding attacks during refresh operations.<a href="#section-3-10" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="client-use-of-dpop-rt">
+<section id="section-4">
+      <h2 id="name-client-use-of-dpop-rt">
+<a href="#section-4" class="section-number selfRef">4. </a><a href="#name-client-use-of-dpop-rt" class="section-name selfRef">Client Use of DPoP-RT</a>
+      </h2>
+<p id="section-4-1">This section defines how clients use the new DPoP-RT HTTP header field and its relationship to the existing DPoP header when interacting with the authorization server (AS).<a href="#section-4-1" class="pilcrow">¶</a></p>
+<div id="including-dpop-rt-during-token-issuance">
+<section id="section-4.1">
+        <h3 id="name-including-dpop-rt-during-to">
+<a href="#section-4.1" class="section-number selfRef">4.1. </a><a href="#name-including-dpop-rt-during-to" class="section-name selfRef">Including DPoP-RT during Token Issuance</a>
+        </h3>
+<p id="section-4.1-1">When a client requests tokens from the AS (for example, during an authorization code exchange) with DPoP mechanism in use, it:<a href="#section-4.1-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-4.1-2.1">
+            <p id="section-4.1-2.1.1"><span class="bcp14">MUST</span> include a DPoP header containing a proof signed with the access token key; and<a href="#section-4.1-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-4.1-2.2">
+            <p id="section-4.1-2.2.1"><span class="bcp14">MAY</span> include a DPoP-RT header containing a proof signed with the refresh token key.<a href="#section-4.1-2.2.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-4.1-3">If a valid DPoP-RT proof is provided, the AS <span class="bcp14">MUST</span> bind any issued refresh token to the key represented by that proof.
+If DPoP-RT is omitted, the AS <span class="bcp14">MUST</span> bind both the access token and refresh token to the key conveyed in the DPoP proof, following the behavior defined in <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span>.<a href="#section-4.1-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="including-dpop-rt-during-token-refresh">
+<section id="section-4.2">
+        <h3 id="name-including-dpop-rt-during-tok">
+<a href="#section-4.2" class="section-number selfRef">4.2. </a><a href="#name-including-dpop-rt-during-tok" class="section-name selfRef">Including DPoP-RT during Token Refresh</a>
+        </h3>
+<p id="section-4.2-1">When using the refresh token to obtain a new access token, the client <span class="bcp14">MUST</span> include both:<a href="#section-4.2-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-4.2-2">
+<li id="section-4.2-2.1">
+            <p id="section-4.2-2.1.1">A DPoP-RT header proving possession of the refresh token key, and<a href="#section-4.2-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-4.2-2.2">
+            <p id="section-4.2-2.2.1">A DPoP header proving possession of the access token key to which the new access token will be bound.<a href="#section-4.2-2.2.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
+<p id="section-4.2-3">The AS <span class="bcp14">MUST NOT</span> infer the new access token key from any previously issued tokens or server-side state. The only valid source for the access token binding key in a refresh request is the key proved in the DPoP header of that request.<a href="#section-4.2-3" class="pilcrow">¶</a></p>
+<p id="section-4.2-4">If the DPoP header is absent, the AS <span class="bcp14">MUST NOT</span> issue a DPoP-bound access token. It <span class="bcp14">MAY</span> issue an unbound (bearer) access token only if explicitly permitted by policy or by the client registration metadata (e.g., when <code>dpop_bound_access_tokens</code> is false). Otherwise, the request <span class="bcp14">MUST</span> be rejected according to the rules in <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span>.<a href="#section-4.2-4" class="pilcrow">¶</a></p>
+<p id="section-4.2-5">If the DPoP-RT header is absent or invalid and the client is registered with <code>dpop_bound_refresh_tokens</code> set to true, the AS <span class="bcp14">MUST</span> reject the request using the <code>invalid_dpop_rt_proof</code> error.<a href="#section-4.2-5" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="example-requests">
+<section id="section-4.3">
+        <h3 id="name-example-requests">
+<a href="#section-4.3" class="section-number selfRef">4.3. </a><a href="#name-example-requests" class="section-name selfRef">Example Requests</a>
+        </h3>
+<p id="section-4.3-1">Authorization code exchange with dual proofs:<a href="#section-4.3-1" class="pilcrow">¶</a></p>
+<span id="name-authorization-code-exchange"></span><div id="authorization-code-flow-request">
+<figure id="figure-2">
+          <div class="alignLeft art-text artwork" id="section-4.3-2.1">
+<pre>
+POST /oauth2/token HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+DPoP: eyJhbGciOiJFUzI1NiIsInR5cCI6ImRwb3Araj... (AT key)
+DPoP-RT: eyJhbGciOiJFUzI1NiIsInR5cCI6ImRwb3AtcnQran... (RT key)
+
+grant_type=authorization_code&amp;
+code=SplxlOBeZQQYbYS6WxSbIA&amp;
+redirect_uri=https%3A%2F%2Fclient.example.org%2Fcb
+</pre>
+</div>
+<figcaption><a href="#figure-2" class="selfRef">Figure 2</a>:
+<a href="#name-authorization-code-exchange" class="selfRef">Authorization code exchange with dual proofs</a>
+          </figcaption></figure>
+</div>
+<p id="section-4.3-3">Refresh token exchange:<a href="#section-4.3-3" class="pilcrow">¶</a></p>
+<span id="name-refresh-token-exchange-with"></span><div id="refresh-token-request">
+<figure id="figure-3">
+          <div class="alignLeft art-text artwork" id="section-4.3-4.1">
+<pre>
+POST /oauth2/token HTTP/1.1
+Content-Type: application/x-www-form-urlencoded
+DPoP: eyJhbGciOiJFUzI1NiIsInR5cCI6ImRwb3Araj... (new AT key)
+DPoP-RT: eyJhbGciOiJFUzI1NiIsInR5cCI6ImRwb3AtcnQran... (RT key)
+
+grant_type=refresh_token&amp;
+refresh_token=eyJhbGciOiJFUzI1NiIsInR5cCI6IkpXVC...
+</pre>
+</div>
+<figcaption><a href="#figure-3" class="selfRef">Figure 3</a>:
+<a href="#name-refresh-token-exchange-with" class="selfRef">Refresh token exchange with dual proofs</a>
+          </figcaption></figure>
+</div>
+</section>
+</div>
+<div id="use-of-nonces">
+<section id="section-4.4">
+        <h3 id="name-use-of-nonces">
+<a href="#section-4.4" class="section-number selfRef">4.4. </a><a href="#name-use-of-nonces" class="section-name selfRef">Use of Nonces</a>
+        </h3>
+<p id="section-4.4-1">The DPoP-RT proof may contain a nonce claim when the AS requires proof freshness. If the AS returns a DPoP-RT-Nonce response header, the client <span class="bcp14">MUST</span> include that value in the nonce claim of the next DPoP-RT proof it constructs.<a href="#section-4.4-1" class="pilcrow">¶</a></p>
+<p id="section-4.4-2">The DPoP-RT-Nonce mechanism is independent from the DPoP-Nonce defined in <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span>; each proof type maintains its own nonce sequence and replay protection.<a href="#section-4.4-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="dpop-rt-proof-structure">
+<section id="section-5">
+      <h2 id="name-dpop-rt-proof-structure">
+<a href="#section-5" class="section-number selfRef">5. </a><a href="#name-dpop-rt-proof-structure" class="section-name selfRef">DPoP-RT Proof Structure</a>
+      </h2>
+<p id="section-5-1">A DPoP-RT proof is a JSON Web Token <span>[<a href="#JWT" class="cite xref">JWT</a>]</span> carried in the DPoP-RT HTTP header. It proves possession of the refresh token key when a client presents or obtains a refresh token at the authorization server (AS).<a href="#section-5-1" class="pilcrow">¶</a></p>
+<p id="section-5-2">The proof follows the same overall structure and construction rules as the DPoP proof defined in <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span>, but with several distinct requirements.<a href="#section-5-2" class="pilcrow">¶</a></p>
+<div id="jws-header">
+<section id="section-5.1">
+        <h3 id="name-jws-header">
+<a href="#section-5.1" class="section-number selfRef">5.1. </a><a href="#name-jws-header" class="section-name selfRef">JWS Header</a>
+        </h3>
+<p id="section-5.1-1">The JOSE Header of a DPoP-RT JWT <span class="bcp14">MUST</span> contain at least the following parameters:<a href="#section-5.1-1" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-5.1-2">
+          <dt id="section-5.1-2.1">typ:</dt>
+          <dd style="margin-left: 1.5em" id="section-5.1-2.2">
+            <p id="section-5.1-2.2.1">A field with the value dpop-rt+jwt<a href="#section-5.1-2.2.1" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-5.1-2.3">alg:</dt>
+          <dd style="margin-left: 1.5em" id="section-5.1-2.4">
+            <p id="section-5.1-2.4.1">An identifier for a JWS asymmetric digital signature algorithm. It <span class="bcp14">MUST NOT</span> be none or an identifier for a symmetric algorithm. It <span class="bcp14">MAY</span> differ from algorithm used in DPoP JWT.<a href="#section-5.1-2.4.1" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-5.1-2.5">jwk:</dt>
+          <dd style="margin-left: 1.5em" id="section-5.1-2.6">
+            <p id="section-5.1-2.6.1">Represents the public key chosen by the client in JSON Web Key <span>[<a href="#JWK" class="cite xref">JWK</a>]</span> format as defined in <span><a href="https://rfc-editor.org/rfc/rfc7517#section-4.1.3" class="relref">Section 4.1.3</a> of [<a href="#JWK" class="cite xref">JWK</a>]</span>. It <span class="bcp14">MUST NOT</span> contain a private key.<a href="#section-5.1-2.6.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="jwt-claims">
+<section id="section-5.2">
+        <h3 id="name-jwt-claims">
+<a href="#section-5.2" class="section-number selfRef">5.2. </a><a href="#name-jwt-claims" class="section-name selfRef">JWT Claims</a>
+        </h3>
+<p id="section-5.2-1">The payload of a DPoP-RT proof <span class="bcp14">MUST</span> contain at least the following claims:<a href="#section-5.2-1" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-5.2-2">
+          <dt id="section-5.2-2.1">jti:</dt>
+          <dd style="margin-left: 1.5em" id="section-5.2-2.2">
+            <p id="section-5.2-2.2.1">Unique identifier for the DPoP-RT proof JWT. It <span class="bcp14">MUST NOT</span> match any other DPoP or DPoP-RT proof used in the same context during the time window of validity.<a href="#section-5.2-2.2.1" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-5.2-2.3">htm:</dt>
+          <dd style="margin-left: 1.5em" id="section-5.2-2.4">
+            <p id="section-5.2-2.4.1">The value of the HTTP method (<span><a href="https://rfc-editor.org/rfc/rfc9110#section-9.1" class="relref">Section 9.1</a> of [<a href="#HTTP" class="cite xref">HTTP</a>]</span>) of the request to which the JWT is attached.<a href="#section-5.2-2.4.1" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-5.2-2.5">htu:</dt>
+          <dd style="margin-left: 1.5em" id="section-5.2-2.6">
+            <p id="section-5.2-2.6.1">The HTTP target URI (<span><a href="https://rfc-editor.org/rfc/rfc9110#section-7.1" class="relref">Section 7.1</a> of [<a href="#HTTP" class="cite xref">HTTP</a>]</span>) of the request to which the JWT is attached, without query and fragment parts.<a href="#section-5.2-2.6.1" class="pilcrow">¶</a></p>
+</dd>
+          <dd class="break"></dd>
+<dt id="section-5.2-2.7">iat:</dt>
+          <dd style="margin-left: 1.5em" id="section-5.2-2.8">
+            <p id="section-5.2-2.8.1">Creation timestamp of the JWT (<span><a href="https://rfc-editor.org/rfc/rfc7519#section-4.1.6" class="relref">Section 4.1.6</a> of [<a href="#JWT" class="cite xref">JWT</a>]</span>).<a href="#section-5.2-2.8.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+</dl>
+<p id="section-5.2-3">When refresh token is presented alongside with DPoP-RT proof, it <span class="bcp14">MUST</span> contain the following claim<a href="#section-5.2-3" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-5.2-4">
+          <dt id="section-5.2-4.1">rth:</dt>
+          <dd style="margin-left: 1.5em" id="section-5.2-4.2">
+            <p id="section-5.2-4.2.1">Hash of the refresh token. The value <span class="bcp14">MUST</span> be the result of a base64url encoding (as defined in <span><a href="https://rfc-editor.org/rfc/rfc7515#section-2" class="relref">Section 2</a> of [<a href="#JWS" class="cite xref">JWS</a>]</span>) the SHA-256 hash of the ASCII encoding of the associated refresh token value.<a href="#section-5.2-4.2.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+</dl>
+<p id="section-5.2-5">When the AS provides a DPoP-RT-Nonce HTTP header in a response, the DPoP proof <span class="bcp14">MUST</span> also contain the following claim:<a href="#section-5.2-5" class="pilcrow">¶</a></p>
+<span class="break"></span><dl class="dlParallel" id="section-5.2-6">
+          <dt id="section-5.2-6.1">nonce:</dt>
+          <dd style="margin-left: 1.5em" id="section-5.2-6.2">
+            <p id="section-5.2-6.2.1">A recent nonce provided via the DPoP-RT-Nonce HTTP header.<a href="#section-5.2-6.2.1" class="pilcrow">¶</a></p>
+</dd>
+        <dd class="break"></dd>
+</dl>
+<p id="section-5.2-7">A DPoP-RT proof <span class="bcp14">MAY</span> contain other JOSE Header Parameters or claims as defined by extension, profile, or deployment-specific requirements.<a href="#section-5.2-7" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="construction-and-signing">
+<section id="section-5.3">
+        <h3 id="name-construction-and-signing">
+<a href="#section-5.3" class="section-number selfRef">5.3. </a><a href="#name-construction-and-signing" class="section-name selfRef">Construction and Signing</a>
+        </h3>
+<p id="section-5.3-1">To provide a DPoP-RT proof a client:<a href="#section-5.3-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-5.3-2">
+<li id="section-5.3-2.1">
+            <p id="section-5.3-2.1.1">Creates a JWT with the header and claims described above.<a href="#section-5.3-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.3-2.2">
+            <p id="section-5.3-2.2.1">Computes the base64url-encoded SHA-256 digest of the refresh-token value and include it in the <code>rth</code> claim.<a href="#section-5.3-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.3-2.3">
+            <p id="section-5.3-2.3.1">Signs the JWT with the private key corresponding to the public key in the <code>jwk</code> header parameter.<a href="#section-5.3-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-5.3-2.4">
+            <p id="section-5.3-2.4.1">Includes the resulting compact serialization value in the DPoP-RT HTTP header.<a href="#section-5.3-2.4.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
+<p id="section-5.3-3">A conceptual example of decoded content of DPoP-RT proof:<a href="#section-5.3-3" class="pilcrow">¶</a></p>
+<span id="name-example-jwt-content-of-a-dp"></span><div id="dpop-rt-example">
+<figure id="figure-4">
+          <div class="alignLeft art-text artwork" id="section-5.3-4.1">
+<pre>
+{
+  "typ":"dpop-rt+jwt",
+  "alg":"ES256",
+  "jwk": {
+    "kty":"EC",
+    "x":"l8tFrhx-34tV3hRICRDY9zCkDlpBhF42UQUfWVAWBFs",
+    "y":"9VE4jf_Ok_o64zbTTlcuNJajHmt6v9TDVrU0CdvGRDA",
+    "crv":"P-256"
+  }
+}
+.
+{
+  "jti":"f62b7f84-eafd-44d8-88b3-ba4f6a574744",
+  "htm":"POST",
+  "htu":"https://as.example.com/oauth2/token",
+  "iat":1760400097,
+  "rth":"fUHyO2r2Z3DZ53EsNrWBb0xWXoaNy59IiKCAqksmQEo"
+}
+</pre>
+</div>
+<figcaption><a href="#figure-4" class="selfRef">Figure 4</a>:
+<a href="#name-example-jwt-content-of-a-dp" class="selfRef">Example JWT Content of a DPoP-RT Proof</a>
+          </figcaption></figure>
+</div>
+</section>
+</div>
+</section>
+</div>
+<div id="authorization-server-processing">
+<section id="section-6">
+      <h2 id="name-authorization-server-proces">
+<a href="#section-6" class="section-number selfRef">6. </a><a href="#name-authorization-server-proces" class="section-name selfRef">Authorization Server Processing</a>
+      </h2>
+<p id="section-6-1">This section defines the processing requirements for authorization servers (AS) when handling requests that include the DPoP-RT header.<a href="#section-6-1" class="pilcrow">¶</a></p>
+<div id="proof-validation">
+<section id="section-6.1">
+        <h3 id="name-proof-validation">
+<a href="#section-6.1" class="section-number selfRef">6.1. </a><a href="#name-proof-validation" class="section-name selfRef">Proof Validation</a>
+        </h3>
+<p id="section-6.1-1">When a request containing a DPoP-RT header is received, the AS <span class="bcp14">MUST</span> perform the following checks in order:<a href="#section-6.1-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-6.1-2">
+<li id="section-6.1-2.1">
+            <p id="section-6.1-2.1.1">Verify the JWS signature using the public key contained in the <code>jwk</code> header parameter. The algorithm <span class="bcp14">MUST</span> match the <code>alg</code> header value, and the algorithm <span class="bcp14">MUST</span> be supported and permitted by the AS.<a href="#section-6.1-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-6.1-2.2">
+            <p id="section-6.1-2.2.1">Confirm that the <code>typ</code> header value is "dpop-rt+jwt". Proofs with any other value <span class="bcp14">MUST</span> be rejected.<a href="#section-6.1-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-6.1-2.3">
+            <p id="section-6.1-2.3.1">Ensure that the <code>htm</code> and <code>htu</code> claims exactly match the HTTP method and absolute URI of the current request to the token endpoint. Implementations <span class="bcp14">MUST</span> compare the scheme, host, and path components in a case-sensitive manner as defined in <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span>.<a href="#section-6.1-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-6.1-2.4">
+            <p id="section-6.1-2.4.1">Validate that the <code>iat</code> claim is within an acceptable time window and that the <code>jti</code> value has not been used before with the same key and nonce context. The AS <span class="bcp14">MUST</span> maintain state or use another mechanism to prevent re-use of jti values for the lifetime of the nonce or replay window.<a href="#section-6.1-2.4.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-6.1-2.5">
+            <p id="section-6.1-2.5.1">If the AS previously issued a DPoP-RT-Nonce value, it <span class="bcp14">MUST</span> verify that the proof contains a matching <code>nonce</code> claim. If the nonce is missing, invalid, or expired, the AS <span class="bcp14">MUST</span> reject the request with the <code>use_dpop_rt_nonce</code> error and include a new DPoP-RT-Nonce response header.<a href="#section-6.1-2.5.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-6.1-2.6">
+            <p id="section-6.1-2.6.1">If the request includes a <code>refresh_token</code> parameter, the AS <span class="bcp14">MUST</span> compute the base64url-encoded SHA-256 digest of the presented refresh token value and compare it to the <code>rth</code> claim in the proof. A mismatch or missing <code>rth</code> claim in this case <span class="bcp14">MUST</span> cause the request to fail with <code>invalid_dpop_rt_proof</code>. If no refresh token is included in the request (for example, during the initial authorization code exchange), the <code>rth</code> claim <span class="bcp14">MUST NOT</span> be present.<a href="#section-6.1-2.6.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
+<p id="section-6.1-3">If any of the above checks fail, the AS <span class="bcp14">MUST</span> reject the request with an appropriate error.<a href="#section-6.1-3" class="pilcrow">¶</a></p>
+<p id="section-6.1-4">Successful validation proves that the client possesses the private key corresponding to the refresh-token binding and that the proof is specific to the current token request.<a href="#section-6.1-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="token-binding-and-issuance">
+<section id="section-6.2">
+        <h3 id="name-token-binding-and-issuance">
+<a href="#section-6.2" class="section-number selfRef">6.2. </a><a href="#name-token-binding-and-issuance" class="section-name selfRef">Token Binding and Issuance</a>
+        </h3>
+<p id="section-6.2-1">When both DPoP and DPoP-RT proofs are successfully validated, the AS <span class="bcp14">MUST</span> bind tokens as follows:<a href="#section-6.2-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-6.2-2.1">
+            <p id="section-6.2-2.1.1">The access token is bound to the public key carried in the <code>jwk</code> header of the DPoP proof, as specified in <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span>.<a href="#section-6.2-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-6.2-2.2">
+            <p id="section-6.2-2.2.1">The refresh token is bound to the public key carried in the <code>jwk</code> header of the DPoP-RT proof.<a href="#section-6.2-2.2.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-6.2-3">If the client omits the DPoP-RT header, the AS <span class="bcp14">MUST</span> bind both tokens to the same key proved in the DPoP header, preserving compatibility with <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span>. If the client omits the DPoP header and policy allows bearer tokens, the AS <span class="bcp14">MAY</span> issue an unbound (bearer) access token. Otherwise, the request <span class="bcp14">MUST</span> be rejected according to <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span>.<a href="#section-6.2-3" class="pilcrow">¶</a></p>
+<p id="section-6.2-4">If the AS rotates refresh tokens as part of the response, the newly issued refresh token <span class="bcp14">MUST</span> be bound to the same refresh token key proven in the current request.<a href="#section-6.2-4" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="dpop-rt-nonce-issuance">
+<section id="section-6.3">
+        <h3 id="name-dpop-rt-nonce-issuance">
+<a href="#section-6.3" class="section-number selfRef">6.3. </a><a href="#name-dpop-rt-nonce-issuance" class="section-name selfRef">DPoP-RT Nonce Issuance</a>
+        </h3>
+<p id="section-6.3-1">The AS <span class="bcp14">MAY</span> return a DPoP-RT-Nonce header in success or error response to signal that the client must include this value in subsequent DPoP-RT proofs. The AS <span class="bcp14">SHOULD</span> periodically refresh the nonce to limit replay potential. Nonce values are opaque to the client and <span class="bcp14">MUST</span> be treated as short-lived.<a href="#section-6.3-1" class="pilcrow">¶</a></p>
+<p id="section-6.3-2">The DPoP-RT-Nonce mechanism operates independently from the DPoP-Nonce defined in <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span>. Each proof type maintains its own nonce sequence and state.<a href="#section-6.3-2" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="client-registration-metadata">
+<section id="section-7">
+      <h2 id="name-client-registration-metadat">
+<a href="#section-7" class="section-number selfRef">7. </a><a href="#name-client-registration-metadat" class="section-name selfRef">Client Registration Metadata</a>
+      </h2>
+<p id="section-7-1">This specification introduces a new boolean client registration metadata parameter named <code>dpop_bound_refresh_tokens</code>.<a href="#section-7-1" class="pilcrow">¶</a></p>
+<p id="section-7-2">With <code>true</code> value of this parameter client indicates that its refresh tokens are always bound to a proof-of-possession key, as demonstrated by a DPoP-RT proof, and that the AS <span class="bcp14">MUST</span> enforce the use of such proofs whenever a refresh token is presented.<a href="#section-7-2" class="pilcrow">¶</a></p>
+<p id="section-7-3">This parameter can be supplied during client registration <span>[<a href="#OAUTH-DYNAMIC" class="cite xref">OAUTH-DYNAMIC</a>]</span>. Authorization servers that support this extension <span class="bcp14">MAY</span> advertise support for this metadata in their documentation or discovery interfaces, but no new AS metadata fields are defined by this specification.<a href="#section-7-3" class="pilcrow">¶</a></p>
+<div id="server-enforcement">
+<section id="section-7.1">
+        <h3 id="name-server-enforcement">
+<a href="#section-7.1" class="section-number selfRef">7.1. </a><a href="#name-server-enforcement" class="section-name selfRef">Server Enforcement</a>
+        </h3>
+<p id="section-7.1-1">If a client is registered with dpop_bound_refresh_tokens = true, the AS <span class="bcp14">MUST</span>:<a href="#section-7.1-1" class="pilcrow">¶</a></p>
+<ol start="1" type="1" class="normal type-1" id="section-7.1-2">
+<li id="section-7.1-2.1">
+            <p id="section-7.1-2.1.1">Reject any request using a refresh token that does not contain a valid DPoP-RT header. The AS <span class="bcp14">MUST</span> return the <code>invalid_dpop_rt_proof</code> error when a proof is malformed, invalid, or fails validation. The AS <span class="bcp14">MUST</span> return <code>use_dpop_rt_nonce</code> when a fresh proof with a valid nonce is required.<a href="#section-7.1-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-7.1-2.2">
+            <p id="section-7.1-2.2.1">Bind all refresh tokens issued to that client to the key demonstrated by the corresponding DPoP-RT proof at issuance time.<a href="#section-7.1-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li id="section-7.1-2.3">
+            <p id="section-7.1-2.3.1">AS <span class="bcp14">MUST</span> reject unbound refresh token use including refresh token previously issued without binding information (for example, before registration or migration).<a href="#section-7.1-2.3.1" class="pilcrow">¶</a></p>
+</li>
+        </ol>
+<p id="section-7.1-3">If a client is registered with dpop_bound_refresh_tokens = false or the parameter is omitted, the AS <span class="bcp14">MAY</span> treat DPoP-RT as optional and continue to follow the behavior defined in <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span>.<a href="#section-7.1-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+</section>
+</div>
+<div id="security-considerations">
+<section id="section-8">
+      <h2 id="name-security-considerations">
+<a href="#section-8" class="section-number selfRef">8. </a><a href="#name-security-considerations" class="section-name selfRef">Security Considerations</a>
+      </h2>
+<p id="section-8-1">This extension introduces an additional proof type (DPoP-RT) and the ability to bind refresh tokens to a distinct proof-of-possession key. Implementations <span class="bcp14">MUST</span> apply all security considerations of <span>[<a href="#DPoP" class="cite xref">DPoP</a>]</span> in addition to those described below.<a href="#section-8-1" class="pilcrow">¶</a></p>
+<div id="key-separation-and-compartmentalization">
+<section id="section-8.1">
+        <h3 id="name-key-separation-and-compartm">
+<a href="#section-8.1" class="section-number selfRef">8.1. </a><a href="#name-key-separation-and-compartm" class="section-name selfRef">Key Separation and Compartmentalization</a>
+        </h3>
+<p id="section-8.1-1">Using distinct keys for access and refresh tokens limits the impact of key compromise:<a href="#section-8.1-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-8.1-2.1">
+            <p id="section-8.1-2.1.1">If the access token key is compromised, an attacker can invoke protected APIs until the access token expires but cannot obtain new tokens.<a href="#section-8.1-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-8.1-2.2">
+            <p id="section-8.1-2.2.1">If the refresh token key is compromised, an attacker can redeem the refresh token and obtain new access tokens, binding them to an attacker-controlled access token key. Separation merely forces AS interaction.<a href="#section-8.1-2.2.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-8.1-3">Implementers <span class="bcp14">SHOULD</span> store the refresh-token key in an HSM or hardened server-side environment and <span class="bcp14">MAY</span> allow the access-token key to reside in a more transient context such as a front-end instance or mobile device. Key separation materially reduces the blast radius of access token key compromise but does not reduce the impact of a full refresh token key compromise.<a href="#section-8.1-3" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="replay-protection-and-nonces">
+<section id="section-8.2">
+        <h3 id="name-replay-protection-and-nonce">
+<a href="#section-8.2" class="section-number selfRef">8.2. </a><a href="#name-replay-protection-and-nonce" class="section-name selfRef">Replay Protection and Nonces</a>
+        </h3>
+<p id="section-8.2-1">DPoP-RT proofs are bearer artifacts and are therefore susceptible to replay if intercepted. To mitigate this risk:<a href="#section-8.2-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-8.2-2.1">
+            <p id="section-8.2-2.1.1">Clients <span class="bcp14">MUST</span> include unique <code>jti</code> values and use short-lived proofs.<a href="#section-8.2-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-8.2-2.2">
+            <p id="section-8.2-2.2.1">Authorization servers <span class="bcp14">MUST</span> detect and reject replayed <code>jti</code> values within the nonce or replay window.<a href="#section-8.2-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-8.2-2.3">
+            <p id="section-8.2-2.3.1">When the AS requires additional freshness, it <span class="bcp14">SHOULD</span> use the DPoP-RT-Nonce mechanism defined in this document. The AS <span class="bcp14">MUST</span> return <code>use_dpop_rt_nonce</code> to request a fresh proof with the supplied nonce.<a href="#section-8.2-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-8.2-2.4">
+            <p id="section-8.2-2.4.1">Nonces for DPoP and DPoP-RT are independent and <span class="bcp14">MUST NOT</span> be interchanged.<a href="#section-8.2-2.4.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="iana-considerations">
+<section id="section-9">
+      <h2 id="name-iana-considerations">
+<a href="#section-9" class="section-number selfRef">9. </a><a href="#name-iana-considerations" class="section-name selfRef">IANA Considerations</a>
+      </h2>
+<p id="section-9-1">This document makes the following registrations.<a href="#section-9-1" class="pilcrow">¶</a></p>
+<div id="http-header-field-registrations">
+<section id="section-9.1">
+        <h3 id="name-http-header-field-registrat">
+<a href="#section-9.1" class="section-number selfRef">9.1. </a><a href="#name-http-header-field-registrat" class="section-name selfRef">HTTP Header Field Registrations</a>
+        </h3>
+<p id="section-9.1-1">IANA is requested to register the following HTTP header fields, as specified by this document, in the "Hypertext Transfer Protocol (HTTP) Field Name Registry":<a href="#section-9.1-1" class="pilcrow">¶</a></p>
+<p id="section-9.1-2">DPoP-RT:<a href="#section-9.1-2" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-9.1-3.1">
+            <p id="section-9.1-3.1.1">Field name: DPoP-RT<a href="#section-9.1-3.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.1-3.2">
+            <p id="section-9.1-3.2.1">Status: Provisional (Permanent if approved)<a href="#section-9.1-3.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.1-3.3">
+            <p id="section-9.1-3.3.1">Reference: This document<a href="#section-9.1-3.3.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-9.1-4">DPoP-RT-Nonce:<a href="#section-9.1-4" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-9.1-5.1">
+            <p id="section-9.1-5.1.1">Field name: DPoP-RT-Nonce<a href="#section-9.1-5.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.1-5.2">
+            <p id="section-9.1-5.2.1">Status: Provisional (Permanent if approved)<a href="#section-9.1-5.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.1-5.3">
+            <p id="section-9.1-5.3.1">Reference: This document<a href="#section-9.1-5.3.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+</section>
+</div>
+<div id="oauth-extensions-error-registry">
+<section id="section-9.2">
+        <h3 id="name-oauth-extensions-error-regi">
+<a href="#section-9.2" class="section-number selfRef">9.2. </a><a href="#name-oauth-extensions-error-regi" class="section-name selfRef">OAuth Extensions Error Registry</a>
+        </h3>
+<p id="section-9.2-1">IANA is requested to register the following entries to the "OAuth Extensions Error Registry":<a href="#section-9.2-1" class="pilcrow">¶</a></p>
+<p id="section-9.2-2">invalid_dpop_rt_proof:<a href="#section-9.2-2" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-9.2-3.1">
+            <p id="section-9.2-3.1.1">Name: invalid_dpop_rt_proof<a href="#section-9.2-3.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.2-3.2">
+            <p id="section-9.2-3.2.1">Usage Location: token error response<a href="#section-9.2-3.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.2-3.3">
+            <p id="section-9.2-3.3.1">Protocol Extension: This document<a href="#section-9.2-3.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.2-3.4">
+            <p id="section-9.2-3.4.1">Change Controller: IETF<a href="#section-9.2-3.4.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.2-3.5">
+            <p id="section-9.2-3.5.1">Reference: This document<a href="#section-9.2-3.5.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+<p id="section-9.2-4">use_dpop_rt_nonce:<a href="#section-9.2-4" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-9.2-5.1">
+            <p id="section-9.2-5.1.1">Name: use_dpop_rt_nonce<a href="#section-9.2-5.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.2-5.2">
+            <p id="section-9.2-5.2.1">Usage Location: token error response<a href="#section-9.2-5.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.2-5.3">
+            <p id="section-9.2-5.3.1">Protocol Extension: This document<a href="#section-9.2-5.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.2-5.4">
+            <p id="section-9.2-5.4.1">Change Controller: IETF<a href="#section-9.2-5.4.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.2-5.5">
+            <p id="section-9.2-5.5.1">Reference: This document<a href="#section-9.2-5.5.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+</section>
+</div>
+<div id="oauth-dynamic-client-registration-metadata">
+<section id="section-9.3">
+        <h3 id="name-oauth-dynamic-client-regist">
+<a href="#section-9.3" class="section-number selfRef">9.3. </a><a href="#name-oauth-dynamic-client-regist" class="section-name selfRef">OAuth Dynamic Client Registration Metadata</a>
+        </h3>
+<p id="section-9.3-1">IANA is requested to register the following value in the IANA "OAuth Dynamic Client Registration Metadata" registry:<a href="#section-9.3-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-9.3-2.1">
+            <p id="section-9.3-2.1.1">Client Metadata Name: dpop_bound_refresh_tokens<a href="#section-9.3-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.3-2.2">
+            <p id="section-9.3-2.2.1">Client Metadata Description: Boolean value specifying whether the client always uses DPoP-RT for refresh token requests<a href="#section-9.3-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.3-2.3">
+            <p id="section-9.3-2.3.1">Change Controller: IETF<a href="#section-9.3-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.3-2.4">
+            <p id="section-9.3-2.4.1">Reference: This document<a href="#section-9.3-2.4.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+</section>
+</div>
+<div id="media-type-registration">
+<section id="section-9.4">
+        <h3 id="name-media-type-registration">
+<a href="#section-9.4" class="section-number selfRef">9.4. </a><a href="#name-media-type-registration" class="section-name selfRef">Media Type Registration</a>
+        </h3>
+<p id="section-9.4-1">IANA is requested to register the application/dpop-rt+jwt media type in the "Media Types" registry.<a href="#section-9.4-1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-9.4-2.1">
+            <p id="section-9.4-2.1.1">Type name: application<a href="#section-9.4-2.1.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.4-2.2">
+            <p id="section-9.4-2.2.1">Subtype name: dpop-rt+jwt<a href="#section-9.4-2.2.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.4-2.3">
+            <p id="section-9.4-2.3.1">Required parameters: n/a<a href="#section-9.4-2.3.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.4-2.4">
+            <p id="section-9.4-2.4.1">Optional parameters: n/a<a href="#section-9.4-2.4.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.4-2.5">
+            <p id="section-9.4-2.5.1">Encoding considerations: binary. A DPoP-RT JWT is a JWT; JWT values are encoded as a series of base64url-encoded values (some of which may be the empty string) separated by period ('.') characters.<a href="#section-9.4-2.5.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.4-2.6">
+            <p id="section-9.4-2.6.1">Security considerations: This document<a href="#section-9.4-2.6.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.4-2.7">
+            <p id="section-9.4-2.7.1">Interoperability considerations: n/a<a href="#section-9.4-2.7.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.4-2.8">
+            <p id="section-9.4-2.8.1">Published specification: This document<a href="#section-9.4-2.8.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.4-2.9">
+            <p id="section-9.4-2.9.1">Applications that use this media type: Applications using this specification for application-level proof of possession of refresh tokens<a href="#section-9.4-2.9.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.4-2.10">
+            <p id="section-9.4-2.10.1">Fragment identifier considerations: n/a<a href="#section-9.4-2.10.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.4-2.11">
+            <p id="section-9.4-2.11.1">Additional information:<a href="#section-9.4-2.11.1" class="pilcrow">¶</a></p>
+<ul class="normal">
+<li class="normal" id="section-9.4-2.11.2.1">
+                <p id="section-9.4-2.11.2.1.1">File extension(s): n/a<a href="#section-9.4-2.11.2.1.1" class="pilcrow">¶</a></p>
+</li>
+              <li class="normal" id="section-9.4-2.11.2.2">
+                <p id="section-9.4-2.11.2.2.1">Macintosh file type code(s): n/a<a href="#section-9.4-2.11.2.2.1" class="pilcrow">¶</a></p>
+</li>
+            </ul>
+</li>
+          <li class="normal" id="section-9.4-2.12">
+            <p id="section-9.4-2.12.1">Person &amp; email address to contact for further information: Yaroslav Rosomakho, yrosomakho@zscaler.com<a href="#section-9.4-2.12.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.4-2.13">
+            <p id="section-9.4-2.13.1">Intended usage: COMMON<a href="#section-9.4-2.13.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.4-2.14">
+            <p id="section-9.4-2.14.1">Restrictions on usage: none<a href="#section-9.4-2.14.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.4-2.15">
+            <p id="section-9.4-2.15.1">Author: Yaroslav Rosomakho, yrosomakho@zscaler.com<a href="#section-9.4-2.15.1" class="pilcrow">¶</a></p>
+</li>
+          <li class="normal" id="section-9.4-2.16">
+            <p id="section-9.4-2.16.1">Change controller: IETF<a href="#section-9.4-2.16.1" class="pilcrow">¶</a></p>
+</li>
+        </ul>
+</section>
+</div>
+</section>
+</div>
+<div id="sec-combined-references">
+<section id="section-10">
+      <h2 id="name-references">
+<a href="#section-10" class="section-number selfRef">10. </a><a href="#name-references" class="section-name selfRef">References</a>
+      </h2>
+<div id="sec-normative-references">
+<section id="section-10.1">
+        <h3 id="name-normative-references">
+<a href="#section-10.1" class="section-number selfRef">10.1. </a><a href="#name-normative-references" class="section-name selfRef">Normative References</a>
+        </h3>
+<dl class="references">
+<dt id="DPoP">[DPoP]</dt>
+        <dd>
+<span class="refAuthor">Fett, D.</span>, <span class="refAuthor">Campbell, B.</span>, <span class="refAuthor">Bradley, J.</span>, <span class="refAuthor">Lodderstedt, T.</span>, <span class="refAuthor">Jones, M.</span>, and <span class="refAuthor">D. Waite</span>, <span class="refTitle">"OAuth 2.0 Demonstrating Proof of Possession (DPoP)"</span>, <span class="seriesInfo">RFC 9449</span>, <span class="seriesInfo">DOI 10.17487/RFC9449</span>, <time datetime="2023-09" class="refDate">September 2023</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc9449">https://www.rfc-editor.org/rfc/rfc9449</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="HTTP">[HTTP]</dt>
+        <dd>
+<span class="refAuthor">Fielding, R., Ed.</span>, <span class="refAuthor">Nottingham, M., Ed.</span>, and <span class="refAuthor">J. Reschke, Ed.</span>, <span class="refTitle">"HTTP Semantics"</span>, <span class="seriesInfo">STD 97</span>, <span class="seriesInfo">RFC 9110</span>, <span class="seriesInfo">DOI 10.17487/RFC9110</span>, <time datetime="2022-06" class="refDate">June 2022</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc9110">https://www.rfc-editor.org/rfc/rfc9110</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="JWK">[JWK]</dt>
+        <dd>
+<span class="refAuthor">Jones, M.</span>, <span class="refTitle">"JSON Web Key (JWK)"</span>, <span class="seriesInfo">RFC 7517</span>, <span class="seriesInfo">DOI 10.17487/RFC7517</span>, <time datetime="2015-05" class="refDate">May 2015</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc7517">https://www.rfc-editor.org/rfc/rfc7517</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="JWS">[JWS]</dt>
+        <dd>
+<span class="refAuthor">Jones, M.</span>, <span class="refAuthor">Bradley, J.</span>, and <span class="refAuthor">N. Sakimura</span>, <span class="refTitle">"JSON Web Signature (JWS)"</span>, <span class="seriesInfo">RFC 7515</span>, <span class="seriesInfo">DOI 10.17487/RFC7515</span>, <time datetime="2015-05" class="refDate">May 2015</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc7515">https://www.rfc-editor.org/rfc/rfc7515</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="JWT">[JWT]</dt>
+        <dd>
+<span class="refAuthor">Jones, M.</span>, <span class="refAuthor">Bradley, J.</span>, and <span class="refAuthor">N. Sakimura</span>, <span class="refTitle">"JSON Web Token (JWT)"</span>, <span class="seriesInfo">RFC 7519</span>, <span class="seriesInfo">DOI 10.17487/RFC7519</span>, <time datetime="2015-05" class="refDate">May 2015</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc7519">https://www.rfc-editor.org/rfc/rfc7519</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC2119">[RFC2119]</dt>
+        <dd>
+<span class="refAuthor">Bradner, S.</span>, <span class="refTitle">"Key words for use in RFCs to Indicate Requirement Levels"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 2119</span>, <span class="seriesInfo">DOI 10.17487/RFC2119</span>, <time datetime="1997-03" class="refDate">March 1997</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc2119">https://www.rfc-editor.org/rfc/rfc2119</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+<dt id="RFC8174">[RFC8174]</dt>
+      <dd>
+<span class="refAuthor">Leiba, B.</span>, <span class="refTitle">"Ambiguity of Uppercase vs Lowercase in RFC 2119 Key Words"</span>, <span class="seriesInfo">BCP 14</span>, <span class="seriesInfo">RFC 8174</span>, <span class="seriesInfo">DOI 10.17487/RFC8174</span>, <time datetime="2017-05" class="refDate">May 2017</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc8174">https://www.rfc-editor.org/rfc/rfc8174</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</div>
+<div id="sec-informative-references">
+<section id="section-10.2">
+        <h3 id="name-informative-references">
+<a href="#section-10.2" class="section-number selfRef">10.2. </a><a href="#name-informative-references" class="section-name selfRef">Informative References</a>
+        </h3>
+<dl class="references">
+<dt id="OAUTH-DYNAMIC">[OAUTH-DYNAMIC]</dt>
+      <dd>
+<span class="refAuthor">Richer, J., Ed.</span>, <span class="refAuthor">Jones, M.</span>, <span class="refAuthor">Bradley, J.</span>, <span class="refAuthor">Machulak, M.</span>, and <span class="refAuthor">P. Hunt</span>, <span class="refTitle">"OAuth 2.0 Dynamic Client Registration Protocol"</span>, <span class="seriesInfo">RFC 7591</span>, <span class="seriesInfo">DOI 10.17487/RFC7591</span>, <time datetime="2015-07" class="refDate">July 2015</time>, <span>&lt;<a href="https://www.rfc-editor.org/rfc/rfc7591">https://www.rfc-editor.org/rfc/rfc7591</a>&gt;</span>. </dd>
+<dd class="break"></dd>
+</dl>
+</section>
+</div>
+</section>
+</div>
+<div id="acknowledgments">
+<section id="appendix-A">
+      <h2 id="name-acknowledgments">
+<a href="#name-acknowledgments" class="section-name selfRef">Acknowledgments</a>
+      </h2>
+<p id="appendix-A-1">TODO acknowledge.<a href="#appendix-A-1" class="pilcrow">¶</a></p>
+</section>
+</div>
+<div id="authors-addresses">
+<section id="appendix-B">
+      <h2 id="name-authors-addresses">
+<a href="#name-authors-addresses" class="section-name selfRef">Authors' Addresses</a>
+      </h2>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Yaroslav Rosomakho</span></div>
+<div dir="auto" class="left"><span class="org">Zscaler</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:yrosomakho@zscaler.com" class="email">yrosomakho@zscaler.com</a>
+</div>
+</address>
+<address class="vcard">
+        <div dir="auto" class="left"><span class="fn nameRole">Loren Weith</span></div>
+<div dir="auto" class="left"><span class="org">Zscaler</span></div>
+<div class="email">
+<span>Email:</span>
+<a href="mailto:lweith@zscaler.com" class="email">lweith@zscaler.com</a>
+</div>
+</address>
+</section>
+</div>
+<script>const toc = document.getElementById("toc");
+toc.querySelector("h2").addEventListener("click", e => {
+  toc.classList.toggle("active");
+});
+toc.querySelector("nav").addEventListener("click", e => {
+  toc.classList.remove("active");
+});
+</script>
+</body>
+</html>
