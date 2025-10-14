@@ -43,9 +43,6 @@ informative:
 
 This document defines an extension to OAuth 2.0 Demonstrating Proof-of-Possession at the application level (DPoP, RFC 9449) that allows refresh tokens to be bound to a different proof-of-possession key than access tokens. In the existing specification, a single DPoP proof is used to bind both tokens to the same key material. However, in many deployments, refresh tokens and access tokens are stored and managed in different security contexts. To support this operational separation, this document introduces a new HTTP header field, DPoP-RT, and corresponding DPoP-RT-Nonce mechanism, enabling independent proof-of-possession for refresh token use while preserving compatibility with existing DPoP-bound access tokens.
 
-A motivating scenario for this extension is an agent managing numerous long-lived tokens on behalf of its users, where user participation is often required for revocation. When combined with a hardware security module (HSM), DPoP allows use of a refresh token to be halted immediately by disabling the associated key material. The token remains valid but unusable until the key is reactivated. In large, distributed systems with many worker nodes, however, involving an HSM in every transaction is operationally impractical, motivating this extension.
-
-
 --- middle
 
 # Introduction
@@ -63,6 +60,8 @@ This separation allows deployments to:
 - Reduce the blast radius of access token key compromise
 
 The extension is fully backward compatible with {{DPoP}} as clients and authorization servers that do not implement this specification continue to operate unchanged, while those that support DPoP-RT can negotiate its use on a per-client basis.
+
+A motivating scenario for this extension is an agent managing numerous long-lived tokens on behalf of its users, where user participation is often required for revocation. When combined with a hardware security module (HSM), DPoP allows use of a refresh token to be halted immediately by disabling the associated key material. The token remains valid but unusable until the key is reactivated. In large, distributed systems with many worker nodes, however, involving an HSM in every transaction is operationally impractical, motivating this extension.
 
 # Conventions and Definitions
 
