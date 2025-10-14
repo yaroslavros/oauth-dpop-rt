@@ -286,7 +286,7 @@ Table of Contents
    request MUST be rejected according to the rules in [DPoP].
 
    If the DPoP-RT header is absent or invalid and the client is
-   registered with drop_bound_refresh_tokens set to true, the AS MUST
+   registered with dpop_bound_refresh_tokens set to true, the AS MUST
    reject the request using the invalid_dpop_rt_proof error.
 
 4.3.  Example Requests
@@ -508,7 +508,7 @@ Table of Contents
 7.  Client Registration Metadata
 
    This specification introduces a new boolean client registration
-   metadata parameter named drop_bound_refresh_tokens.
+   metadata parameter named dpop_bound_refresh_tokens.
 
    With true value of this parameter client indicates that its refresh
    tokens are always bound to a proof-of-possession key, as demonstrated
@@ -523,7 +523,7 @@ Table of Contents
 
 7.1.  Server Enforcement
 
-   If a client is registered with drop_bound_refresh_tokens = true, the
+   If a client is registered with dpop_bound_refresh_tokens = true, the
    AS MUST:
 
    1.  Reject any request using a refresh token that does not contain a
@@ -539,7 +539,7 @@ Table of Contents
        previously issued without binding information (for example,
        before registration or migration).
 
-   If a client is registered with drop_bound_refresh_tokens = false or
+   If a client is registered with dpop_bound_refresh_tokens = false or
    the parameter is omitted, the AS MAY treat DPoP-RT as optional and
    continue to follow the behavior defined in [DPoP].
 
@@ -649,7 +649,7 @@ Table of Contents
    IANA is requested to register the following value in the IANA "OAuth
    Dynamic Client Registration Metadata" registry:
 
-   *  Client Metadata Name: drop_bound_refresh_tokens
+   *  Client Metadata Name: dpop_bound_refresh_tokens
 
    *  Client Metadata Description: Boolean value specifying whether the
       client always uses DPoP-RT for refresh token requests
