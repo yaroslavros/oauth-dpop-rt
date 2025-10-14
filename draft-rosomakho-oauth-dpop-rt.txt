@@ -25,16 +25,6 @@ Abstract
    proof-of-possession for refresh token use while preserving
    compatibility with existing DPoP-bound access tokens.
 
-   A motivating scenario for this extension is an agent managing
-   numerous long-lived tokens on behalf of its users, where user
-   participation is often required for revocation.  When combined with a
-   hardware security module (HSM), DPoP allows use of a refresh token to
-   be halted immediately by disabling the associated key material.  The
-   token remains valid but unusable until the key is reactivated.  In
-   large, distributed systems with many worker nodes, however, involving
-   an HSM in every transaction is operationally impractical, motivating
-   this extension.
-
 About This Document
 
    This note is to be removed before publishing as an RFC.
@@ -157,6 +147,16 @@ Table of Contents
    authorization servers that do not implement this specification
    continue to operate unchanged, while those that support DPoP-RT can
    negotiate its use on a per-client basis.
+
+   A motivating scenario for this extension is an agent managing
+   numerous long-lived tokens on behalf of its users, where user
+   participation is often required for revocation.  When combined with a
+   hardware security module (HSM), DPoP allows use of a refresh token to
+   be halted immediately by disabling the associated key material.  The
+   token remains valid but unusable until the key is reactivated.  In
+   large, distributed systems with many worker nodes, however, involving
+   an HSM in every transaction is operationally impractical, motivating
+   this extension.
 
 2.  Conventions and Definitions
 
