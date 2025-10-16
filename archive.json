@@ -1,0 +1,132 @@
+{
+  "magic": "E!vIA5L86J2I",
+  "timestamp": "2025-10-16T01:11:46.386517+00:00",
+  "repo": "yaroslavros/oauth-dpop-rt",
+  "labels": [
+    {
+      "name": "bug",
+      "description": "Something isn't working",
+      "color": "d73a4a"
+    },
+    {
+      "name": "documentation",
+      "description": "Improvements or additions to documentation",
+      "color": "0075ca"
+    },
+    {
+      "name": "duplicate",
+      "description": "This issue or pull request already exists",
+      "color": "cfd3d7"
+    },
+    {
+      "name": "enhancement",
+      "description": "New feature or request",
+      "color": "a2eeef"
+    },
+    {
+      "name": "good first issue",
+      "description": "Good for newcomers",
+      "color": "7057ff"
+    },
+    {
+      "name": "help wanted",
+      "description": "Extra attention is needed",
+      "color": "008672"
+    },
+    {
+      "name": "invalid",
+      "description": "This doesn't seem right",
+      "color": "e4e669"
+    },
+    {
+      "name": "question",
+      "description": "Further information is requested",
+      "color": "d876e3"
+    },
+    {
+      "name": "wontfix",
+      "description": "This will not be worked on",
+      "color": "ffffff"
+    }
+  ],
+  "issues": [],
+  "pulls": [
+    {
+      "number": 1,
+      "id": "PR_kwDOQB5E5c6twQrj",
+      "title": "added motivating example and edit to sec. section",
+      "url": "https://github.com/yaroslavros/oauth-dpop-rt/pull/1",
+      "state": "MERGED",
+      "author": "lweith",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "",
+      "createdAt": "2025-10-14T21:21:50Z",
+      "updatedAt": "2025-10-14T22:01:04Z",
+      "baseRepository": "yaroslavros/oauth-dpop-rt",
+      "baseRefName": "main",
+      "baseRefOid": "eb467cd7890ff599db52467db868ef90ac1ae416",
+      "headRepository": "lweith/oauth-dpop-rt",
+      "headRefName": "main",
+      "headRefOid": "4bfb8827611fe76bad3939b71a59ea713bd8ff01",
+      "closedAt": "2025-10-14T22:01:03Z",
+      "mergedAt": "2025-10-14T22:01:03Z",
+      "mergedBy": "lweith",
+      "mergeCommit": {
+        "oid": "b8eba546d6bc80f818cd4697562217d6ed16e8bd"
+      },
+      "comments": [],
+      "reviews": [
+        {
+          "id": "PRR_kwDOQB5E5c7G8GQD",
+          "commit": {
+            "abbreviatedOid": "4bfb882"
+          },
+          "author": "yaroslavros",
+          "authorAssociation": "OWNER",
+          "state": "COMMENTED",
+          "body": "Looks great. Just a minor suggestion on the place of the motivating scenario.",
+          "createdAt": "2025-10-14T21:56:04Z",
+          "updatedAt": "2025-10-14T21:56:40Z",
+          "comments": [
+            {
+              "originalPosition": 5,
+              "body": "Let's keep abstract short. I would recommend moving it to the introduction section.",
+              "createdAt": "2025-10-14T21:56:04Z",
+              "updatedAt": "2025-10-14T21:56:40Z"
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "number": 2,
+      "id": "PR_kwDOQB5E5c6twx8s",
+      "title": "moved paragraph",
+      "url": "https://github.com/yaroslavros/oauth-dpop-rt/pull/2",
+      "state": "MERGED",
+      "author": "lweith",
+      "authorAssociation": "COLLABORATOR",
+      "assignees": [],
+      "labels": [],
+      "body": "",
+      "createdAt": "2025-10-14T22:22:50Z",
+      "updatedAt": "2025-10-14T22:24:36Z",
+      "baseRepository": "yaroslavros/oauth-dpop-rt",
+      "baseRefName": "main",
+      "baseRefOid": "b8eba546d6bc80f818cd4697562217d6ed16e8bd",
+      "headRepository": "yaroslavros/oauth-dpop-rt",
+      "headRefName": "move-paragraph",
+      "headRefOid": "1c3852cdb26d8451578befcdf511a082879084c6",
+      "closedAt": "2025-10-14T22:24:36Z",
+      "mergedAt": "2025-10-14T22:24:36Z",
+      "mergedBy": "yaroslavros",
+      "mergeCommit": {
+        "oid": "ca3391cec20a3908f9d652abe8e427bf3475f543"
+      },
+      "comments": [],
+      "reviews": []
+    }
+  ]
+}
